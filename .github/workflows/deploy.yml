@@ -15,15 +15,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+
       - name: Install dependencies
+        # 使用 npm install 并确保生成了 node_modules
         run: npm install
+
       - name: Build with VitePress
-        run: npm run docs:build
+        # 使用 npx 确保一定能找到本地安装的 vitepress
+        run: npx vitepress build
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
