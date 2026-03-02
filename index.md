@@ -3,16 +3,22 @@
 layout: home
 
 hero:
-  name: "Face-Doc"
-  text: "A VitePress Site"
-  tagline: My great project tagline
+  name: "LiMin-Face-Doc"
+  text: "学习技术栈"
+  tagline: 收录归纳总结的技术栈及解析,基于本人所用所学的技术栈，若有错误或遗漏，欢迎指正
   actions:
     - theme: brand
-      text: Markdown Examples
-      link: /markdown-examples
+      text: 快速开始
+      link: /doc/Android/前言
     - theme: alt
-      text: API Examples
-      link: /api-examples
+      text: Android
+      link: /doc/Android/前言
+    - theme: alt
+      text: Vue
+      link: /doc/Vue/前言
+    - theme: alt
+      text: flutter
+      link: /doc/flutter/前言
 
 features:
   - title: Feature A
@@ -22,4 +28,3 @@ features:
   - title: Feature C
     details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
 ---
-

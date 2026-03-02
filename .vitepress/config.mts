@@ -1,29 +1,58 @@
-import { defineConfig } from 'vitepress'
+import { defineConfig } from "vitepress";
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: "Face-Doc",
   description: "A VitePress Site",
-  base: '/limin-Face-Doc/', // 必须和你的 GitHub 仓库名一致，且前后都有斜杠
+  base: "/limin-Face-Doc/", // 必须和你的 GitHub 仓库名一致，且前后都有斜杠
   themeConfig: {
+    search: {
+      provider: "local",
+    },
     // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Home', link: '/' },
-      { text: 'Examples', link: '/markdown-examples' }
+      { text: "快速开始", link: "/doc/前言" },
+      { text: "技术栈", link: "/doc/Android/RecyclerView" },
     ],
 
     sidebar: [
       {
-        text: 'Examples',
+        text: "技术栈",
         items: [
-          { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' }
-        ]
-      }
+          {
+            text: "前言",
+            link: "/doc/前言",
+          },
+          {
+            text: "Android",
+            link: "/doc/Android/前言",
+            collapsed: true,
+            items: [
+              { text: "前言", link: "/doc/Android/前言" },
+              { text: "RecyclerView", link: "/doc/Android/RecyclerView" },
+            ],
+          },
+          {
+            text: "Vue",
+            link: "/doc/Android/前言",
+            collapsed: true,
+            items: [
+              { text: "前言", link: "/doc/Vue/前言" },
+              { text: "v-model的原理", link: "/doc/Vue/v-model的原理" },
+            ],
+          },
+          { text: "浙政钉", link: "/浙政钉开发上架流程" },
+        ],
+      },
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/vuejs/vitepress' }
-    ]
-  }
-})
+      { icon: "github", link: "https://github.com/vuejs/vitepress" },
+    ],
+    footer: {
+      message: "Released under the MIT License.",
+      copyright: "Copyright © 2026-present Li Min",
+    },
+  },
+  lastUpdated: true,
+});
