@@ -4,6 +4,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "Face-Doc",
   description: "A VitePress Site",
+  base: '/limin-Face-Doc/', // 必须和你的 GitHub 仓库名一致，且前后都有斜杠
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
