@@ -1,5 +1,14 @@
 # RecyclerView
 
+## 是什么？
+
+Android开发中的列表组件，**Recycle**（回收）+ **View**（视图）。
+
+- **极速流畅：** 拥有四级缓存机制，即便是快速滑动也几乎不掉帧。
+- **高度灵活：** 想把竖排列表改成网格？改一行代码换个 `LayoutManager` 就行，不需要改数据逻辑。
+- **自带动画：** 默认支持 Item 添加、删除、移动时的丝滑动画效果。
+- **局部刷新：** 配合 `Payload` 或 `DiffUtil`，可以只刷新一个点赞图标，而不必刷新整个页面。
+
 ##  基本实现
 
 
@@ -223,6 +232,31 @@ recyclerView.adapter = mAdapter
 
 
 
+## 缓存机制
+
+**当一个item移除屏幕时，它并不会被销毁，而是根据状态进入以下四个缓存池**
+
+| <span style="display:inline-block;width:80px">层级</span> | <span style="display:inline-block;width:80px">名称</span> | <span style="display:inline-block;width:80px">作用</span> | 特点                                                         |
+| :-------------------------------------------------------- | :-------------------------------------------------------- | :-------------------------------------------------------- | ------------------------------------------------------------ |
+| **第一级**                                                | **ScrapList**                                             | 屏幕内缓存                                                | 存储当前正在显示的ViewHolder,仅用于布局计算                  |
+| **第二级**                                                | **Cache Views**                                           | 离屏缓存                                                  | 默认大小为2。存储刚移除屏幕的ViewHolder,保留属性             |
+| **第三级**                                                | **ViewCacheExtension**                                    | 自定义缓存                                                | 开发者自行实现，基本很少使用。                               |
+| **第四级**                                                | **RecycledViewPool**                                      | 复用池                                                    | 按viewType 分类存储。每个viewType最大容量为5,超过数据会被抹除，复用时找到了同类型的ViewHolder，将其取出，无需创建View，但必须执行`onBindViewHolder`来更新数据 |
+
+`核心工作原理`
+
+##### 回收流程（以向上滑动为例）
+
+1. **移出屏幕：** 当 Item A 移出屏幕上方，它首先进入 **Cache Views**。
+2. **缓存溢出：** 如果 Cache Views 已满（默认 2 个），最先进入的 Item A 会被“踢出”，并移动到 **RecycledViewPool** 中。
+3. **抹除状态：** 进入 RecycledViewPool 后，ViewHolder 的数据标签通常被视为无效，等待重新绑定。
+
+##### 复用流程（以向下滑动为例）
+
+1. **检查 Cache Views：** 优先检查离屏缓存。如果命中了（比如你刚滑上去又滑回来），直接显示，连 `onBindViewHolder` 都不用跑。
+2. **检查 RecycledViewPool：** 如果第一步没中，去复用池找。如果找到了同类型的 ViewHolder，将其取出，但必须执行 `onBindViewHolder` 来更新数据。
+3. **彻底重建：** 如果所有缓存都落空，才会调用 `onCreateViewHolder` 创建全新的对象。
+
 ## 优化
 
 
@@ -239,6 +273,82 @@ recyclerView.adapter = mAdapter
 
 5. **局部刷新**：千万不要直接调用 `notifyDataSetChanged()`。它会触发整个列表重绘，非常低效。如果只是 Item 内部某个控件（如点赞数）变了，利用 `notifyItemChanged(position, payload)` 进行增量更新，避免重新绑定整个 Item。
 
-6. 使用setItemViewCacheSize(size)来加大RecyclerView缓存数目，用空间换取时间提高流畅度
+6. **使用setItemViewCacheSize(size)** 来加大RecyclerView缓存数目，用空间换取时间提高流畅度，特别是列表动画复杂或数据量大，可适当调整
 
-7. 对于RecyclerView嵌套RecyclerView的布局，可以使用单个RecyclerView进行多类型布局展示，而不是使用嵌套
+7. **开启** `setHasStableIds(true)`   ，RecyclerView 会根据 ID 进行更精准的复用，进一步提升性能。
+
+8. 对于RecyclerView嵌套RecyclerView的布局，使用**单个RecyclerView进行多类型布局展示**，而不是使用嵌套
+
+9. **共享** `RecycledViewPool` 单列表二级缓存就已经足够无需共享，viewType不同，只要重复就可以使用共享，多个RecycledView情况下共享
+
+
+
+## RecycledViewPool 使用场景
+
+1. **场景1：**嵌套滑动列表，外层是竖向滑动的`RecyclerView`，每一行又是横向滑动的`RecyclerView`，让所有横向内层列表共用一个`RecycledViewPool`,如果横向列表的item很大且各不相同时，`onCreateViewHolder` 的开销很大。除了共享池，你**必须**配合预取机制：
+
+   ```java
+   // 在内层 RecyclerView 初始化时
+   LinearLayoutManager layout = (LinearLayoutManager) innerRv.getLayoutManager();
+   // 告诉 RecyclerView：当这一行即将进入屏幕时，提前帮我创建并绑定好 4 个子 Item
+   layout.setInitialPrefetchItemCount(4);
+   ```
+
+   
+
+2. **场景2：**多Tab切换布局相同，如一个页面三个 Tab（如：全部、已付款、待发货），每个 Tab 都是一个 Fragment，且每个 Fragment 里列表的 Item 布局完全一模一样，在 Activity 级别创建一个 `RecycledViewPool`，并传给这三个 Fragment 的 RecyclerView。
+
+3. **场景3：**爆款Item类型（极端优化）
+
+   列表中某种类型的 Item 出现频率极高（例如：朋友圈里的纯文字动态），一屏能显示 10 个。
+
+   可手动调类型的存储上限
+
+   ```java
+   // 将文字类型的缓存池扩大到 15 个
+   recyclerView.getRecycledViewPool().setMaxRecycledViews(TYPE_TEXT, 15);
+   ```
+
+   
+
+## 第三方库
+
+
+
+**[BaseRecyclerViewAdapterHelper](https://github.com/CymChad/BaseRecyclerViewAdapterHelper)** 
+
+- **减少样板代码**
+
+- **多布局支持：** 处理不同类型的 Item（如文字+图片、纯文字）变得非常简单，只需实现 `BaseMultiItemAdapter`。
+- **空布局（Empty View）：** 一行代码设置数据为空时的显示界面。
+- **加载动画：** 内置了多种滑入、缩放动画，提升用户体验。
+- **头布局与尾布局：** 提供 `addHeaderView` 和 `addFooterView`，不需要自己去复杂的逻辑里判断 `viewType`。
+
+### 
+
+**基本实现**
+
+```kotlin
+class LoanAdapter : BaseQuickAdapter<Loan, LoanAdapter.VH>() {
+    class VH(
+        parent: ViewGroup,
+        val binding: LoanItemBinding = LoanItemBinding.inflate(
+            LayoutInflater.from(parent.context), parent, false
+        ),
+    ) : RecyclerView.ViewHolder(binding.root)
+
+    override fun onCreateViewHolder(context: Context, parent: ViewGroup, viewType: Int): VH {
+        // 返回一个 ViewHolder
+        return VH(parent)
+    }
+  
+    override fun onBindViewHolder(holder: VH, position: Int, item: Loan?) {
+        holder.binding.tvHyDj.text = hyDj.descResource
+    }
+}
+```
+
+
+
+[SmartRefreshLayout](https://github.com/scwang90/SmartRefreshLayout)  下拉刷新、上拉加载、二级刷新、淘宝二楼、RefreshLayout、OverScroll，Android智能下拉刷新框架，支持越界回弹、越界拖动，具有极强的扩展性，集成了几十种炫酷的Header和 Footer。
+

@@ -30,6 +30,7 @@ export default defineConfig({
             items: [
               { text: "前言", link: "/doc/Android/前言" },
               { text: "RecyclerView", link: "/doc/Android/RecyclerView" },
+              { text: "Activity", link: "/doc/Android/四大组件之Activity" },
             ],
           },
           {
