@@ -29,8 +29,13 @@ export default defineConfig({
             collapsed: true,
             items: [
               { text: "前言", link: "/doc/Android/前言" },
-              { text: "RecyclerView", link: "/doc/Android/RecyclerView" },
               { text: "Activity", link: "/doc/Android/四大组件之Activity" },
+              { text: "Fragment", link: "/doc/Android/四大组件之Fragment" },
+              { text: "Service", link: "/doc/Android/四大组件之Service" },
+              { text: "BroadcastReceiver", link: "/doc/Android/四大组件之BroadcastReceiver" },
+              { text: "ContentProvider", link: "/doc/Android/四大组件之ContentProvider" },
+              { text: "UI布局方式", link: "/doc/Android/布局方式" },
+              { text: "RecyclerView", link: "/doc/Android/RecyclerView" },
             ],
           },
           {
