@@ -66,7 +66,80 @@ BroadcastReceiver 的生命周期非常短：
 
 
 
+### 为什么选择 SharedFlow？
+
+在替代广播场景时，我们通常使用 `SharedFlow` 而非 `StateFlow`：
+
+- **无默认值**：广播通常是事件（Event），不需要初始状态。
+- **多订阅者**：支持多个 Fragment/Activity 同时监听。
+- **事件丢失控制**：可以通过 `replay` 参数决定新订阅者是否能收到旧消息。
 
 
 
+
+
+### 第一步：定义全局事件中心
+
+Kotlin
+
+```
+object AppEventBus {
+    // 定义一个私有的 MutableSharedFlow
+    private val _events = MutableSharedFlow<AppEvent>()
+    
+    // 暴露只读的 Flow 给外部订阅
+    val events = _events.asSharedFlow()
+
+    // 发送事件的方法（相当于 sendBroadcast）
+    suspend fun post(event: AppEvent) {
+        _events.emit(event)
+    }
+}
+
+// 定义事件类型（密封类，类型安全）
+sealed class AppEvent {
+    object Logout : AppEvent()
+    data class UserProfileUpdated(val nickname: String) : AppEvent()
+}
+```
+
+### 第二步：发送“广播”
+
+在任何协程作用域中调用 `post` 即可。
+
+Kotlin
+
+```
+lifecycleScope.launch {
+    AppEventBus.post(AppEvent.UserProfileUpdated("吉米"))
+}
+```
+
+### 第三步：接收“广播” (替代 onReceive)
+
+利用 `repeatOnLifecycle` 自动处理生命周期，这比手动注销广播要安全得多。
+
+Kotlin
+
+```kotlin
+class ProfileActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        lifecycleScope.launch {
+            // 当 Activity 进入 Started 状态时开始监听，Stopped 时自动挂起
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                AppEventBus.events.collect { event ->
+                    when (event) {
+                        is AppEvent.UserProfileUpdated -> {
+                            updateUI(event.nickname)
+                        }
+                        AppEvent.Logout -> finish()
+                    }
+                }
+            }
+        }
+    }
+}
+```
 
