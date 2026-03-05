@@ -40,14 +40,20 @@ export default defineConfig({
           },
           {
             text: "Vue",
-            link: "/doc/Android/前言",
+            link: "/doc/Vue/前言",
             collapsed: true,
             items: [
               { text: "前言", link: "/doc/Vue/前言" },
               { text: "v-model的原理", link: "/doc/Vue/v-model的原理" },
             ],
           },
-          { text: "浙政钉", link: "/浙政钉开发上架流程" },
+          { text: "浙政钉", link: "/doc/浙政钉/浙政钉开发上架流程" ,
+            collapsed: true,
+            items: [
+              { text: "前言", link: "/doc/浙政钉/前言" },
+              { text: "开发上架流程", link: "/doc/浙政钉/浙政钉开发上架流程" },
+            ],
+          },
         ],
       },
     ],
