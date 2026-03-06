@@ -62,6 +62,12 @@ BroadcastReceiver 的生命周期非常短：
 
 
 
+
+
+
+
+
+
 ## Kotlin Flow替代本地广播或EventBus
 
 
@@ -119,8 +125,6 @@ lifecycleScope.launch {
 
 利用 `repeatOnLifecycle` 自动处理生命周期，这比手动注销广播要安全得多。
 
-Kotlin
-
 ```kotlin
 class ProfileActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -143,3 +147,13 @@ class ProfileActivity : AppCompatActivity() {
 }
 ```
 
+
+
+如果你希望新打开的页面也能收到“最后一条发出的通知”（类似 `Sticky Broadcast`），只需调整 `SharedFlow` 的参数：
+
+```kotlin
+private val _stickyEvents = MutableSharedFlow<AppEvent>(
+    replay = 1, // 保存最后 1 条事件
+    onBufferOverflow = BufferOverflow.DROP_OLDEST // 缓冲区满时丢弃旧的
+)
+```

@@ -30,12 +30,15 @@ export default defineConfig({
             items: [
               { text: "前言", link: "/doc/Android/前言" },
               { text: "Activity", link: "/doc/Android/四大组件之Activity" },
-              { text: "Fragment", link: "/doc/Android/四大组件之Fragment" },
+              { text: "Fragment", link: "/doc/Android/Fragment" },
               { text: "Service", link: "/doc/Android/四大组件之Service" },
               { text: "BroadcastReceiver", link: "/doc/Android/四大组件之BroadcastReceiver" },
               { text: "ContentProvider", link: "/doc/Android/四大组件之ContentProvider" },
               { text: "UI布局方式", link: "/doc/Android/布局方式" },
               { text: "RecyclerView", link: "/doc/Android/RecyclerView" },
+              { text: "缓存", link: "/doc/Android/缓存" },
+              { text: "内存泄漏", link: "/doc/Android/内存泄漏" },
+              { text: "开发架构演变", link: "/doc/Android/开发架构演变" },
             ],
           },
           {
@@ -52,6 +55,12 @@ export default defineConfig({
             items: [
               { text: "前言", link: "/doc/浙政钉/前言" },
               { text: "开发上架流程", link: "/doc/浙政钉/浙政钉开发上架流程" },
+            ],
+          },
+          { text: "AI", link: "/doc/AI/OpenClaw.md" ,
+            collapsed: true,
+            items: [
+              { text: "OpenClaw部署", link: "/doc/AI/OpenClaw.md" },
             ],
           },
         ],
