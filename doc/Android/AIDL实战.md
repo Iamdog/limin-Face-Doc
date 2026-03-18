@@ -37,7 +37,7 @@ title: Android AIDL实战
 
 ### 定义接口
 
-```aidl
+```java
 interface IBookManager {
     void addBook(String name);
     List<String> getBooks();
