@@ -15,7 +15,7 @@ hero:
       link: /doc/Android/前言
     - theme: alt
       text: Vue
-      link: /doc/Vue/前言
+      link: /doc/vue/前言
     - theme: alt
       text: flutter
       link: /doc/flutter/前言

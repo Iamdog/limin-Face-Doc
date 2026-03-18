@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420">
+  <defs>
+    <style>
+      .box { fill:#fff7e6; stroke:#2b2b2b; stroke-width:2; }
+      .pool { fill:#e8fff1; stroke:#2b2b2b; stroke-width:2; }
+      .txt { font: 16px 'Arial', sans-serif; fill:#1a1a1a; }
+      .small { font: 14px 'Arial', sans-serif; fill:#1a1a1a; }
+      .arrow { stroke:#2b2b2b; stroke-width:2; marker-end:url(#arrow); }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L9,3 L0,6 Z" fill="#2b2b2b" />
+    </marker>
+  </defs>
+
+  <rect x="40" y="40" width="220" height="320" class="box"/>
+  <text x="60" y="75" class="txt">任务队列</text>
+  <text x="60" y="110" class="small">任务1</text>
+  <text x="60" y="140" class="small">任务2</text>
+  <text x="60" y="170" class="small">任务3</text>
+  <text x="60" y="200" class="small">任务4</text>
+  <text x="60" y="230" class="small">...</text>
+
+  <rect x="320" y="40" width="520" height="320" class="pool"/>
+  <text x="340" y="75" class="txt">ThreadPoolExecutor</text>
+
+  <rect x="360" y="110" width="140" height="80" class="box"/>
+  <text x="380" y="150" class="small">核心线程</text>
+
+  <rect x="540" y="110" width="140" height="80" class="box"/>
+  <text x="560" y="150" class="small">核心线程</text>
+
+  <rect x="360" y="220" width="140" height="80" class="box"/>
+  <text x="380" y="260" class="small">非核心线程</text>
+
+  <rect x="540" y="220" width="140" height="80" class="box"/>
+  <text x="560" y="260" class="small">非核心线程</text>
+
+  <line x1="260" y1="140" x2="320" y2="140" class="arrow"/>
+</svg>
