@@ -63,11 +63,60 @@ title: Android APK打包安装与签名
 5. 在 PMS 中完成包信息注册。
 6. 安装完成后桌面出现图标。
 
-## 8. AAB 是什么？
+## 8. Android App Bundle (AAB / Bundle 包) 深度原理
 
-- AAB 是 Android App Bundle。
-- 它不是直接安装包，而是发布格式。
-- Google Play 会根据设备 ABI、语言、屏幕密度生成更小的分发包。
+### 8.1 什么是 AAB？
+- **AAB（Android App Bundle，扩展名为 `.aab`）** 是 Google 推出并强制在 Google Play 上发布的**现代分发格式**。
+- 它**不是**设备可直接安装执行的格式（Android 手机上运行的永远是 APK），而是一种**包含应用所有编译代码和资源归档的发布包**。
+- 由 Google Play 或分发服务器根据每个终端设备的具体硬件特征，动态生成并下发最匹配该设备的精简组合包。
+
+### 8.2 AAB 核心底层原理：动态交付（Dynamic Delivery）与 Split APKs
+
+在 Android 5.0（Lollipop，API 21）中，系统底层引入了 **Split APKs（分包机制）**，使得一个应用可以由多个互相关联的 APK 组成并共享同一个包名、进程与上下文：
+
+```mermaid
+graph TD
+    AAB["开发者上传的 AAB (app-release.aab)"] -->|Google Play 处理与拆分| Cloud[Google Play 动态交付服务]
+    Cloud --> Base["Base APK (核心代码与基础资产)"]
+    Cloud --> ABI["ABI Config Split (如仅 arm64-v8a 的 .so 库)"]
+    Cloud --> Density["Density Config Split (如仅 xxhdpi 屏幕图片)"]
+    Cloud --> Lang["Language Config Split (如仅 zh-CN 语言字符)"]
+    Cloud --> Feature["Dynamic Feature APK (按需加载的高级功能/大模块)"]
+
+    Base --> TargetDevice["目标用户手机 (安装 Split APK 集合)"]
+    ABI --> TargetDevice
+    Density --> TargetDevice
+    Lang --> TargetDevice
+```
+
+1. **Base APK（基础包）**：
+   - 包含所有用户都会运行的核心代码（DEX）、AndroidManifest.xml 与基础公共资源。
+2. **Configuration Split APKs（配置分包）**：
+   - **架构 ABI 分包**：只下发当前设备所需的 CPU 架构（如 `arm64-v8a`），不再将 `armeabi-v7a`、`x86`、`x86_64` 等臃肿的 `.so` 动态链接库全部打包给用户。
+   - **屏幕密度（Screen Density）分包**：只下载目标设备需要的图片资源（如 `xxhdpi`），不下载 `hdpi`、`xhdpi`、`xxxhdpi` 等冗余图片。
+   - **语言分包（Language）**：只下发用户系统当前设置的语言包（如中文），省去几十种甚至上百种国际化语言资源。
+3. **Feature Split APKs（动态功能模块 / Dynamic Feature Modules）**：
+   - 开发者可将非核心功能（如大额退款复杂流程、AR 体验、专业视频滤镜）剥离为独立模块。
+   - 支持**按需下载（On-demand）**、**条件下载（如仅带陀螺仪的手机才下发）**或**安装时延后静默下载**。
+
+### 8.3 Google Play 签名托管（Play App Signing）原理
+传统 APK 模式下，开发者直接将私钥签名的 APK 交付给用户，一旦签名私钥泄露，应用身份全部沦陷；若私钥丢失，则应用永远无法升级。
+
+在 AAB 模式下，采用**双密钥体系**：
+- **Upload Key（上传密钥）**：开发者保留，仅用于将 `.aab` 上传至 Google Play 控制台。
+- **App Signing Key（应用签名私钥）**：由 Google 严格存储在与 Google 核心基础设施同等安全级别的密钥管理服务（KMS）中。Google Play 接收到 AAB 后，拆分出 Split APK，并用该 App Signing Key 为每个 Split APK 完成最终签名。
+- **好处**：即使开发者的上传证书遗失或电脑损坏，也可以向 Google 申请重置 Upload Key，不会影响线上老用户的平滑升级覆盖。
+
+### 8.4 AAB 与传统 Fat APK 对比
+
+| 对比维度 | 传统单体 APK（Fat APK） | Android App Bundle（AAB） |
+| :--- | :--- | :--- |
+| **文件格式** | `.apk`（可直接通过 `adb install` 安装） | `.aab`（不可直接安装，需转成 Split APKs） |
+| **设备下发产物** | 所有机型下载完全相同的完整包 | 针对机型硬件按需组装拆分包组合 |
+| **ABI so库冗余** | 包含全部 ABI（armeabi-v7a, arm64-v8a 等） | **只下发匹配当前硬件的那 1 套 so 库** |
+| **分辨率资源冗余**| 包含 mdpi 到 xxxhdpi 所有图集 | **只下发匹配当前手机屏幕密度的资源** |
+| **平均体积节约** | 0%（全量膨胀） | **平均减少 15% ~ 35%+ 的下载体积** |
+| **生态兼容性** | 国内所有应用市场通用 | Google Play 官方强制；国内市场通常以传统 APK 为主 |
 
 ## 9. 混淆、压缩、瘦身为什么重要？
 
@@ -99,6 +148,11 @@ A: 因为它关系到后续版本升级能力、渠道发版和安全信任链�
 ### Q5: 为什么线上包通常会做 zipalign？
 A: 因为对齐后资源读取效率更高，有助于系统按页映射和访问优化。
 
-## 11. 小结
+## 11. 小结与工程实战
 
-这类题的关键不是背命令，而是讲清楚 APK 结构、签名意义、安装流程和工程化发布链路。面试官一般更在意你是不是实际发过包、踩过坑。
+这类题的关键不仅是理解概念，更是讲清楚 APK 结构、签名机制、安装流程和工程化发布链路。
+
+::: tip 深入工程实践
+关于 **Keystore 签名生成命令、v2/v3 验签、zipalign 对齐、Gradle 多渠道打包（Product Flavors / Walle）及 APK 自动重命名** 的具体脚本与命令行实操，请参阅：
+👉 [Android发包打包、签名与ADB调试命令全集](/doc/Android/Android发包打包与ADB调试命令全集)
+:::

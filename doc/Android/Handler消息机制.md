@@ -13,16 +13,32 @@ title: Handler消息机制底层原理与进阶实战
 ## 一、 Handler 四大核心角色协作链路
 
 ```text
-┌──────────────┐                  ┌─────────────────────────────────────────┐
-│   Handler    │── sendMessage() ─>│               MessageQueue              │
-│ (发送/处理消息)│                  │ (单链表优先级队列，按 msg.when 执行时间戳排序)│
-└──────────────┘                  └────────────────────┬────────────────────┘
-       ▲                                               │ next() 阻塞拉取
-       │ dispatchMessage()                             ▼
-┌──────┴───────┐                  ┌─────────────────────────────────────────┐
-│ 目标线程执行  │<── 回调 target ───│             Looper (线程轮询器)         │
-│ (handleMsg)  │                  │  (ThreadLocal 绑定，单一线程唯一持有)     │
-└──────────────┘                  └─────────────────────────────────────────┘
+::: tip 📦 通俗心智模型：快递流水线与智能休眠传送带
+* **`Message`（包裹）**：里面装着具体的数据货物（`what, arg1, obj`），包裹上面贴着专属收件人条码（`target` 就是发送它的 Handler）。
+* **`Handler`（寄件人 & 拆件工）**：
+  * 在子线程可以把包裹扔上传送带（`sendMessage()`）；
+  * 在主线程里又是负责最后拆开包裹并干活的人（`handleMessage()`）。
+* **`MessageQueue`（单向传送带）**：
+  * 所有包裹严格按照**预约送达时间戳（`msg.when`）**从先到后排队。
+* **`Looper`（传送带电机与分拣员）**：
+  * 守在传送带末端不断拉取到期包裹（`next()`），看一眼包裹上的 `target` 是谁，直接把包裹递给对应的 Handler 拆包。
+* **为什么死循环不耗 CPU 也不卡死？**
+  * 传送带上没包裹时，底层通过 Linux `epoll` 机制让电机**自动关机休眠**，主线程让出 CPU，耗电几乎为 0！
+  * 一旦有新包裹放上传送带，管道写入信号**瞬间唤醒电机**继续派件。
+:::
+
+```mermaid
+flowchart LR
+    subgraph Pipeline["Handler 机制闭环流水线"]
+        direction LR
+        H1["👨‍💻 Handler<br>(子线程发送消息)"] -->|"sendMessage()"| MQ["📦 MessageQueue<br>(按执行时间 when 排队的单链表)"]
+        MQ -->|"next() 阻塞拉取"| LP["⚙️ Looper 轮询器<br>(ThreadLocal 绑定当前线程)"]
+        LP -->|"dispatchMessage()<br>交还给 target"| H2["🎯 Handler.handleMessage()<br>(主线程安全更新 UI)"]
+    end
+
+    style MQ fill:#fff3e0,stroke:#e65100
+    style LP fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style H2 fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
 ```
 
 - **对应关系**：

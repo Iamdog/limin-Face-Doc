@@ -30,22 +30,29 @@ for (let i = 0; i < 1000; i++) {
 
 ## 二、 结合浏览器 EventLoop 详解更新时序
 
-```text
-  [主线程同步任务]                  [微任务队列 (Microtask Queue)]
-        │                                         │
-        ├── 1. count.value++                      │
-        │      (触发 Setter，推入渲染 Effect) ────┼──> [Job 1: 异步更新组件 DOM]
-        │                                         │
-        ├── 2. count.value++                      │
-        │      (检测到 Job 1 已在队列中，直接去重)  │
-        │                                         │
-        ├── 3. nextTick(() => { ... }) ───────────┼──> [Job 2: 开发者 nextTick 回调]
-        │                                         │
-  [同步任务执行完毕]                              │
-        │                                         ▼
-        └─────────────────────────────────> 按顺序依次执行:
-                                            1. 先执行 Job 1: 真实更新并挂载 DOM
-                                            2. 再执行 Job 2: 此时用户回调拿到最新 DOM！
+::: tip 📋 通俗心智模型：餐厅服务员“汇总报单”
+* **假如没有异步队列（反例）**：
+  * 你连喊 1000 次 `count.value++`，就像你在 1 秒钟内连续对服务员喊了 1000 次“加一粒花生米”。如果服务员每次都立刻飞奔进厨房重炒一粒端出来，后厨瞬间瘫痪，餐厅直接暴毙（同步频繁操作真实 DOM 导致页面卡死）。
+* **Vue 的聪明做法（异步更新队列）**：
+  * 服务员拿小本本默默记下你的需求，并把相同的要求合并去重。等你把话说完（同步 JS 执行完毕），服务员才拿着最终汇总清单（微任务队列）走进厨房**只统一做一次炒菜出餐（合并单次 DOM 渲染）**！
+* **`nextTick` 到底是什么？**：
+  * 就是你在服务员的菜单最末尾追加了一句话：“**等这盘菜做好了端上桌，把最新的账单拿给我看看**”。
+  * 因为追加的附言排在做菜之后（队列先进先出 FIFO），所以在 `nextTick` 回调里你一定能拿到刚出锅的“最新 DOM”！
+:::
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Sync as JS 主线程同步任务
+    participant Micro as 微任务队列 (Microtask)
+    participant DOM as 浏览器真实 DOM 视口
+
+    Sync ->> Micro: 1. count.value++ (触发 Setter，推入渲染 Effect)
+    Sync ->> Micro: 2. count.value++ (检测到同一组件更新已在队中，自动去重跳过)
+    Sync ->> Micro: 3. nextTick(cb) (将用户的回调追加到微任务队列尾部)
+    Note over Sync: 同步执行栈清空完毕!
+    Micro ->> DOM: 4. 出队任务 1: 统一批量渲染更新 DOM
+    Micro ->> Sync: 5. 出队任务 2: 执行 nextTick 用户回调 (此时读取 DOM 为最新值!)
 ```
 
 - **为什么在修改数据后立即调 `nextTick` 能拿到最新 DOM？**

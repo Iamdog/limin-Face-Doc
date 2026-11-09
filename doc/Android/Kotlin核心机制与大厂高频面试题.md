@@ -1,8 +1,8 @@
 ---
-title: Kotlin核心机制与大厂高频面试题
+title: Kotlin核心机制与高频实战解析
 ---
 
-# Kotlin核心机制与大厂高频面试题
+# Kotlin核心机制与高频实战解析
 
 ## 🎯 招聘面试核心考点
 - **面试官设问**：“Kotlin 的 `inline`、`noinline`、`crossinline` 底层字节码是如何实现的？为什么高阶函数不加内联会引发 GC 频繁？”
@@ -99,7 +99,7 @@ Object fetchUserInfo(String userId, Continuation<User> continuation)
 
 ---
 
-### 3. 结构化并发中的异常传播避坑（面试大厂高频）
+### 3. 结构化并发中的异常传播避坑（生产高频痛点）
 - **`coroutineScope`**：若其中一个子协程抛出未捕获异常，异常会**向上向外扩散**，导致**取消其所有同级兄弟协程与父协程**。
 - **`supervisorScope` / `SupervisorJob`**：子协程的异常被局部隔离，**单个子协程崩溃不会影响其他兄弟协程的正常运行**。
 

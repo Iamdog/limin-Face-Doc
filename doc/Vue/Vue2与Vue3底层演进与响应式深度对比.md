@@ -94,17 +94,29 @@ v3Data.list[0] = 'B';  // 控制台打印：修改属性: 0 = B
 
 Vue 2 的 Virtual DOM（虚拟 DOM）在对比时是**全量递归比对（Full Diff）**：即便页面里只有 1 个动态变量，其余 99 个都是纯静态标签，也会逐一比对这 100 个节点。
 
-Vue 3 引入了编译器前置分析，在编译阶段打入元数据：
+Vue 3 引入了编译器前置分析，在编译阶段给动态节点打入元数据（PatchFlag），实现“靶向狙击式”更新：
 
-```text
-       Vue 2 全量树递归 Diff (复杂度 O(全量节点))
-             [div]
-            /     \
-         [p静态]   [span动态]  <-- 依然要盲目检查 [p静态] 是否改变
- 
- ────────────────────────────────────────────────────────
-       Vue 3 Block Tree 扁平化 Diff (复杂度 O(动态节点))
-             [Block] ── 仅追踪动态节点数组 [span (PatchFlag: 1)] 
+```mermaid
+flowchart TD
+    subgraph Vue2["Vue 2: 盲人摸象 (全量深度递归 Diff)"]
+        direction TB
+        V2Root["根节点 div"] --> V2P1["纯静态节点 p<br>(文字永远不变)"]
+        V2Root --> V2P2["纯静态节点 h2<br>(文字永远不变)"]
+        V2Root --> V2Span["动态节点 span<br>(count 变了!)"]
+        
+        style V2P1 stroke:#f44336,stroke-dasharray: 5 5
+        style V2P2 stroke:#f44336,stroke-dasharray: 5 5
+        style V2Span fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    end
+
+    subgraph Vue3["Vue 3: 靶向狙击 (Block Tree 动态一维数组)"]
+        direction TB
+        V3Block["Block 根节点<br>(静态节点直接跳过)"] --> V3Array["一维动态列表 dynamicChildren<br>[ span (动态文本 PatchFlag: 1) ]"]
+        V3Array --> V3Target["🎯 直达目标: 仅对比并更新 span<br>耗时缩短 80%+"]
+        
+        style Vue3 fill:#e8f5e9,stroke:#2e7d32
+        style V3Target fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
+    end
 ```
 
 ### 1. 静态提升（hoistStatic）
@@ -131,20 +143,33 @@ Vue 3 引入了编译器前置分析，在编译阶段打入元数据：
 
 ## 三、 Options API vs Composition API 心智模型对比
 
-```text
-       Options API (Vue 2)                    Composition API (Vue 3)
-┌─────────────────────────────────┐      ┌─────────────────────────────────┐
-│ export default {                │      │ // 业务逻辑 A (搜索功能聚合)    │
-│   data() {                      │      │ const useSearch = () => { ... } │
-│     // 业务A变量 / 业务B变量    │      │                                 │
-│   },                            │      │ // 业务逻辑 B (列表加载聚合)    │
-│   methods: {                    │      │ const usePagination = () => {...│
-│     // 业务A方法 / 业务B方法    │      │                                 │
-│   }                             │      │ // 组件只需 setup 声明引入      │
-│ }                               │      │ const { ... } = useSearch()     │
-└─────────────────────────────────┘      └─────────────────────────────────┘
-  (同一功能的代码被切割到各个配置项，     (按业务功能彻底高内聚，抽取复用极度优雅)
-   代码上千行后如同在大海捞针)
+::: tip 🧩 通俗心智模型：四分五裂的抽屉 VS 模块化乐高积木
+- **Vue 2 (Options API) 就像“按零件分类的杂物柜”**：
+  - 你写一个“搜索栏功能”，它的变量必须放在 `data` 抽屉，方法放在 `methods` 抽屉，联动逻辑放在 `watch` 抽屉。
+  - 当一个组件膨胀到 1000 行时，功能A、B、C的代码被打散在各个抽屉里，改一个功能要在整个屏幕上下反复横跳，苦不堪言。
+- **Vue 3 (Composition API) 就像“独立完整的乐高套件”**：
+  - 功能A的所有变量、计算属性、方法统统封装成 `useSearch()`，功能B封装成 `usePagination()`。
+  - 逻辑按**业务功能**高度内聚，甚至可以随时抽离成独立 `.ts` 文件给其他组件复用！
+:::
+
+```mermaid
+flowchart LR
+    subgraph Vue2["Vue 2 (Options API): 逻辑碎片化"]
+        direction TB
+        D["data 抽屉<br>(A变量, B变量, C变量)"]
+        M["methods 抽屉<br>(A方法, B方法, C方法)"]
+        W["watch 抽屉<br>(A监听, B监听, C监听)"]
+    end
+
+    subgraph Vue3["Vue 3 (Composition API): 逻辑高度内聚"]
+        direction TB
+        LegoA["🧱 useSearch()<br>搜索变量 + 搜索方法 + 接口请求"]
+        LegoB["🧱 useTablePagination()<br>分页变量 + 切页方法 + 页码监听"]
+        LegoC["🧱 useExportExcel()<br>导出状态 + 下载逻辑"]
+    end
+
+    style Vue2 fill:#fff3e0,stroke:#e65100
+    style Vue3 fill:#e8f5e9,stroke:#2e7d32
 ```
 
 - **类型推导友好**：Composition API 纯函数结构，对 TypeScript 天然兼容，告别 Vue 2 中 `this` 无法类型推断的噩梦。

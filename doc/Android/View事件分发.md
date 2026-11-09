@@ -14,20 +14,40 @@ title: View事件分发机制与滑动冲突终极治理
 
 触摸事件从硬件屏幕产生后，由系统服务底层的 `InputReader` 与 `InputDispatcher` 采集，通过 Socket / Binder 传递给应用的 `DecorView`，随后进入 View 树递归分发：
 
-```text
-               Activity.dispatchTouchEvent()
-                          │
-                          ▼
-            ViewGroup.dispatchTouchEvent()
-                          │
-                 onInterceptTouchEvent()?
-                /                        \
-          (返回 true: 拦截)          (返回 false: 不拦截)
-              /                            \
-             ▼                              ▼
-     ViewGroup.onTouchEvent()        childView.dispatchTouchEvent()
-            │                               │
-    (是否消费返回 true?)              childView.onTouchEvent()
+::: tip 🏢 通俗心智模型：公司领导派活与打工人“U 型回溯”
+* **总经理 (Activity)**：接到客户的业务需求（触摸事件），交给总监去办。
+* **项目总监 (ViewGroup)**：
+  * 先问自己一句 **`onInterceptTouchEvent`（这活我要不要截胡？）**：
+    * 如果返回 `true`（拦截）：总监直接拿走自己干（`onTouchEvent`）。
+    * 如果返回 `false`（不拦截）：总监把活派给下属**基层打工人 (Child View)**。
+* **基层打工人 (Child View)**：
+  * 开始干活 **`onTouchEvent`**：
+    * 如果搞定了返回 `true`（**成功消费**）：任务闭环，后续的所有连续动作（MOVE/UP）都直接由他负责！
+    * 如果搞不定返回 `false`（**不消费**）：打工人开始“踢皮球”，把任务逐层往上抛给总监；总监也搞不定就抛给总经理；若都没人管，事件被丢弃。
+* **`ACTION_CANCEL` 到底是什么？**：
+  * 打工人本来在低头干活（消费了 DOWN 事件），结果手指滑了一段，总监突然在 MOVE 阶段决定拦截截胡。总监立刻冲打工人喊一声：“**你不用干了，立刻停工！**”——打工人收到 `ACTION_CANCEL`，把按压高亮状态重置。
+:::
+
+```mermaid
+flowchart TD
+    subgraph U_Dispatch["触摸事件 U 型流转路线图"]
+        direction TB
+        Act["🏢 Activity.dispatchTouchEvent()"] --> VG["👔 ViewGroup.dispatchTouchEvent()"]
+        VG --> Intercept{"onInterceptTouchEvent()<br>总监是否拦截?"}
+        
+        Intercept -->|"是 (true 拦截)"| VG_Touch["👔 ViewGroup.onTouchEvent()<br>总监亲自干活"]
+        Intercept -->|"否 (false 放行)"| Child["👷 ChildView.dispatchTouchEvent()"]
+        
+        Child --> Child_Touch{"👷 ChildView.onTouchEvent()<br>打工人是否搞定?"}
+        Child_Touch -->|"搞定 (返回 true)"| Done["🎉 成功消费，链路闭环"]
+        Child_Touch -->|"搞不定 (返回 false)"| Fallback_VG["踢皮球回溯 ⤴️<br>ViewGroup.onTouchEvent()"]
+        
+        Fallback_VG -->|"总监也搞不定"| Fallback_Act["踢皮球回溯 ⤴️<br>Activity.onTouchEvent()"]
+    end
+
+    style Intercept fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style Done fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
+    style Child_Touch fill:#e1f5fe,stroke:#0288d1
 ```
 
 ### 1. 三大核心方法职责与返回值速记
