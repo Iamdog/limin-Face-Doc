@@ -1,65 +1,101 @@
 ---
-title: Android RecyclerView源码与缓存深挖
+title: RecyclerView源码架构与四级缓存深挖
 ---
 
-# Android RecyclerView源码与缓存深挖
+# RecyclerView源码架构与四级缓存深挖
 
-这篇是 `RecyclerView` 文档的深入版，面向中高级面试常问的缓存命中路径和性能细节。
+## 🎯 招聘面试核心考点
+- **面试官设问**：“RecyclerView 的**四级缓存机制**是哪四级？各个缓存的优先级和生命周期是怎样的？”
+- **深水区追问**：“为什么从 **`mCachedViews`** 取出的 ViewHolder **不需要重新调用 `onBindViewHolder()`**，而从 **`RecycledViewPool`** 取出的 ViewHolder **必须重新绑定数据**？点赞时如何通过 **Payload 局部增量刷新** 彻底避免 Item 整行闪烁与图片重复加载？多个水平滚动的 RecyclerView 嵌套时，如何通过**共享缓存池**节省 80% 内存？”
 
-## 1. 核心角色
+---
 
-- `RecyclerView`：容器与调度入口。
-- `Adapter`：数据绑定。
-- `LayoutManager`：布局与回收策略。
-- `Recycler`：缓存管理核心。
-- `RecycledViewPool`：跨列表复用池。
+## 一、 四级缓存机制底层流转全景图
 
-## 2. 缓存层级回顾
+RecyclerView 在执行测量与布局时，通过核心组件 **`Recycler`** 的 `getViewForPosition()` 方法依次向四级缓存索取可复用的 ViewHolder：
 
-- `mAttachedScrap` / `mChangedScrap`
-- `mCachedViews`
-- `ViewCacheExtension`
-- `RecycledViewPool`
+```text
+               需要展示第 position 项数据
+                         │
+        ┌────────────────▼────────────────┐
+        │  一级缓存: mAttachedScrap       │ ──(命中: 坐标未变)──> 直接复用 (不重新绑定)
+        │  (重新布局时临时保存屏幕内的可见项)│
+        └────────────────┬────────────────┘
+                         │ 未命中
+        ┌────────────────▼────────────────┐
+        │  二级缓存: mCachedViews (容量 2) │ ──(命中: 刚滑出屏幕)─> 直接复用 (无需 onBind!)
+        │  (保存最近滑出屏幕的完整状态项)   │
+        └────────────────┬────────────────┘
+                         │ 未命中
+        ┌────────────────▼────────────────┐
+        │  三级缓存: mViewCacheExtension  │ ──(极少使用，开发者自定义扩展缓存)
+        └────────────────┬────────────────┘
+                         │ 未命中
+        ┌────────────────▼────────────────┐
+        │  四级缓存: RecycledViewPool     │ ──(命中: 数据被抹除)─> 必须重新调用 onBindViewHolder()!
+        │  (按 viewType 分组的对象池，限5)│
+        └────────────────┬────────────────┘
+                         │ 全部未命中
+                         ▼
+           彻底调用 onCreateViewHolder() 创建新实例
+```
 
-面试重点：命中越靠前，复用成本越低。
+---
 
-## 3. 典型取 ViewHolder 路径
+## 二、 核心机制剖析：为什么二、四级复用策略不同？
 
-1. 先查 Scrap（屏幕内/变更缓存）。
-2. 再查 `mCachedViews`。
-3. 再查 `RecycledViewPool`（按 `viewType`）。
-4. 最后才 `onCreateViewHolder` 新建。
+### 1. 二级缓存 `mCachedViews`（精准原样复用）
+- **容量**：默认最多缓存 **2 个** ViewHolder。
+- **存储特性**：它保存的是**刚滑出屏幕、即将又滑回来的数据项**（例如用户上下微幅滑动回弹）。
+- **为什么不需要重新走 `onBindViewHolder`？**
+  因为 `mCachedViews` 记录了 ViewHolder 原本绑定的**位置索引 `position` 和数据状态**。当滑回来时，数据一模一样，直接贴回屏幕，**零数据重新绑定计算，帧率丝滑！**
 
-## 4. 为什么 `notifyDataSetChanged()` 代价高
+---
 
-- 失去细粒度更新信息。
-- 容易触发全量重绑定与动画退化。
-- 对复杂列表会显著放大主线程压力。
+### 2. 四级缓存 `RecycledViewPool`（跨位置甚至跨组件纯净复用）
+- **存储结构**：底层是一个 `SparseArray<ScrapData>`，**按不同的 `viewType` 分组存放**，每个 `viewType` 默认最大缓存 **5 个**。
+- **为什么必须重新走 `onBindViewHolder`？**
+  当 `mCachedViews` 满了（超过 2 个）之后，最旧的 ViewHolder 会被踢到 `RecycledViewPool` 中。
+  在进入对象池前，**其原本的 `position` 和所有业务数据被彻底重置擦除（只保留了 View 视图树层级结构）**。因此当它被再次拿出来复用给新的一行时，**必须重新注入新数据并执行 `onBindViewHolder()`**！
 
-## 5. 优化抓手
+---
 
-- `DiffUtil` 做增量更新。
-- `setHasStableIds(true)` 提升条目识别稳定性。
-- 嵌套列表共享 `RecycledViewPool`。
-- 控制 `onBindViewHolder` 逻辑重量。
+## 三、 生产级性能调优三大神技
 
-## 6. 常见面试题
+### 1. Payload 局部刷新（终结整行 Item 闪烁）
+- **场景**：点赞、修改收藏状态时，默认调用 `notifyItemChanged(position)` 会导致整个 Item 的图片重新加载、文本重新绑定，造成**视觉上的瞬间白色闪烁**。
+- **优化方案**：传递一个特定的 `payload` 标识对象，只刷新点赞图标：
 
-### Q1: RecyclerView 为什么滑动更流畅？
-A: 因为它通过多级缓存和按需复用降低了创建和绑定开销。
+```kotlin
+// 1. 业务调用端：只通知局部变动
+adapter.notifyItemChanged(position, "PAYLOAD_LIKE_STATUS")
 
-### Q2: `mCachedViews` 和 `RecycledViewPool` 的区别？
-A: 前者是当前 RecyclerView 私有近场缓存，后者可按类型跨 RecyclerView 复用。
+// 2. Adapter 内部：重写带 payloads 参数的 onBindViewHolder
+override fun onBindViewHolder(holder: MyViewHolder, position: Int, payloads: MutableList<Any>) {
+    if (payloads.isNotEmpty() && payloads.contains("PAYLOAD_LIKE_STATUS")) {
+        // 核心：仅更新点赞图标动画，绝不重新加载大图！
+        holder.updateLikeIcon(getItem(position).isLiked)
+    } else {
+        // 全量兜底更新
+        super.onBindViewHolder(holder, position, payloads)
+    }
+}
+```
 
-### Q3: 为什么有时复用了 ViewHolder 仍会卡？
-A: 复用只减少创建成本，若绑定阶段做重逻辑仍会卡顿。
+---
 
-### Q4: 共享池一定有效吗？
-A: 不一定。只有 `viewType` 分布和场景匹配时才有明显收益。
+### 2. 嵌套 RecyclerView 共享缓存池（大促首页内存暴跌）
+- **场景**：电商大促首页通常是**外层垂直 RecyclerView 嵌套了多个水平滚动的商品列表**（每个楼层横滑 10 件商品）。
+- **痛点**：每个水平 RecyclerView 默认都会为自己创建一套独立的 `RecycledViewPool`，造成内存中堆积数百个同类型的商品卡片 View。
+- **方案**：全局创建一个共享的 Pool，传给所有内部子 RecyclerView：
 
-### Q5: 列表优化第一优先级是什么？
-A: 先减少全量刷新和重绑定，再谈更细节的缓存参数调整。
+```kotlin
+// 全局只维护一个公共对象池
+val sharedPool = RecyclerView.RecycledViewPool().apply {
+    setMaxRecycledViews(VIEW_TYPE_PRODUCT, 20)
+}
 
-## 7. 小结
-
-源码题回答要落到“命中路径 + 成本模型 + 可量化优化”，不要只背四级缓存名词。
+// 绑定每个楼层的横向 RecyclerView 时传入
+horizontalRecyclerView.setRecycledViewPool(sharedPool)
+```
+> **收益**：多个横向楼层互相复用已滑出屏幕的卡片，**内存开销下降 60% 以上，彻底杜绝快速滑动时的 OOM**！

@@ -3,32 +3,30 @@ import {
   toArray,
   tryOnScopeDispose,
   unrefElement
-} from "./chunk-TBFXGU3P.js";
+} from "./chunk-67EPYPJN.js";
 import {
   computed,
   shallowRef,
   toValue,
   watch
-} from "./chunk-YVDK3O6H.js";
+} from "./chunk-5LOGM3DX.js";
 
-// ../../node_modules/tabbable/dist/index.esm.js
-var candidateSelectors = ["input:not([inert]):not([inert] *)", "select:not([inert]):not([inert] *)", "textarea:not([inert]):not([inert] *)", "a[href]:not([inert]):not([inert] *)", "button:not([inert]):not([inert] *)", "[tabindex]:not(slot):not([inert]):not([inert] *)", "audio[controls]:not([inert]):not([inert] *)", "video[controls]:not([inert]):not([inert] *)", '[contenteditable]:not([contenteditable="false"]):not([inert]):not([inert] *)', "details>summary:first-of-type:not([inert]):not([inert] *)", "details:not([inert]):not([inert] *)"];
+// node_modules/tabbable/dist/index.esm.js
+var candidateSelectors = ["input:not([inert]):not([inert] *)", "select:not([inert]):not([inert] *)", "textarea:not([inert]):not([inert] *)", "a[href]:not([inert]):not([inert] *)", "area[href]:not([inert]):not([inert] *)", "button:not([inert]):not([inert] *)", "[tabindex]:not(slot):not([inert]):not([inert] *)", "audio[controls]:not([inert]):not([inert] *)", "video[controls]:not([inert]):not([inert] *)", '[contenteditable]:not([contenteditable="false"]):not([inert]):not([inert] *)', "details>summary:first-of-type:not([inert]):not([inert] *)", "details:not([inert]):not([inert] *)"];
 var candidateSelector = candidateSelectors.join(",");
 var NoElement = typeof Element === "undefined";
 var matches = NoElement ? function() {
 } : Element.prototype.matches || Element.prototype.msMatchesSelector || Element.prototype.webkitMatchesSelector;
 var getRootNode = !NoElement && Element.prototype.getRootNode ? function(element) {
-  var _element$getRootNode;
-  return element === null || element === void 0 ? void 0 : (_element$getRootNode = element.getRootNode) === null || _element$getRootNode === void 0 ? void 0 : _element$getRootNode.call(element);
+  return element == null || element.getRootNode == null ? void 0 : element.getRootNode();
 } : function(element) {
-  return element === null || element === void 0 ? void 0 : element.ownerDocument;
+  return element == null ? void 0 : element.ownerDocument;
 };
 var _isInert = function isInert(node, lookUp) {
-  var _node$getAttribute;
   if (lookUp === void 0) {
     lookUp = true;
   }
-  var inertAtt = node === null || node === void 0 ? void 0 : (_node$getAttribute = node.getAttribute) === null || _node$getAttribute === void 0 ? void 0 : _node$getAttribute.call(node, "inert");
+  var inertAtt = node == null || node.getAttribute == null ? void 0 : node.getAttribute("inert");
   var inert = inertAtt === "" || inertAtt === "true";
   var result = inert || lookUp && node && // closest does not exist on shadow roots, so we fall back to a manual
   // lookup upward, in case it is not defined.
@@ -36,9 +34,9 @@ var _isInert = function isInert(node, lookUp) {
   return result;
 };
 var isContentEditable = function isContentEditable2(node) {
-  var _node$getAttribute2;
-  var attValue = node === null || node === void 0 ? void 0 : (_node$getAttribute2 = node.getAttribute) === null || _node$getAttribute2 === void 0 ? void 0 : _node$getAttribute2.call(node, "contenteditable");
-  return attValue === "" || attValue === "true";
+  var _node$getAttribute;
+  var attValue = node == null || node.getAttribute == null || (_node$getAttribute = node.getAttribute("contenteditable")) == null ? void 0 : _node$getAttribute.toLowerCase();
+  return attValue === "" || attValue === "true" || attValue === "plaintext-only";
 };
 var getCandidates = function getCandidates2(el, includeContainer, filter) {
   if (_isInert(el)) {
@@ -170,16 +168,16 @@ var isNonTabbableRadio = function isNonTabbableRadio2(node) {
 var isNodeAttached = function isNodeAttached2(node) {
   var _nodeRoot;
   var nodeRoot = node && getRootNode(node);
-  var nodeRootHost = (_nodeRoot = nodeRoot) === null || _nodeRoot === void 0 ? void 0 : _nodeRoot.host;
+  var nodeRootHost = (_nodeRoot = nodeRoot) == null ? void 0 : _nodeRoot.host;
   var attached = false;
   if (nodeRoot && nodeRoot !== node) {
-    var _nodeRootHost, _nodeRootHost$ownerDo, _node$ownerDocument;
-    attached = !!((_nodeRootHost = nodeRootHost) !== null && _nodeRootHost !== void 0 && (_nodeRootHost$ownerDo = _nodeRootHost.ownerDocument) !== null && _nodeRootHost$ownerDo !== void 0 && _nodeRootHost$ownerDo.contains(nodeRootHost) || node !== null && node !== void 0 && (_node$ownerDocument = node.ownerDocument) !== null && _node$ownerDocument !== void 0 && _node$ownerDocument.contains(node));
+    var _nodeRootHost, _node$ownerDocument;
+    attached = !!((_nodeRootHost = nodeRootHost) != null && (_nodeRootHost = _nodeRootHost.ownerDocument) != null && _nodeRootHost.contains(nodeRootHost) || node != null && (_node$ownerDocument = node.ownerDocument) != null && _node$ownerDocument.contains(node));
     while (!attached && nodeRootHost) {
-      var _nodeRoot2, _nodeRootHost2, _nodeRootHost2$ownerD;
+      var _nodeRoot2, _nodeRootHost2;
       nodeRoot = getRootNode(nodeRootHost);
-      nodeRootHost = (_nodeRoot2 = nodeRoot) === null || _nodeRoot2 === void 0 ? void 0 : _nodeRoot2.host;
-      attached = !!((_nodeRootHost2 = nodeRootHost) !== null && _nodeRootHost2 !== void 0 && (_nodeRootHost2$ownerD = _nodeRootHost2.ownerDocument) !== null && _nodeRootHost2$ownerD !== void 0 && _nodeRootHost2$ownerD.contains(nodeRootHost));
+      nodeRootHost = (_nodeRoot2 = nodeRoot) == null ? void 0 : _nodeRoot2.host;
+      attached = !!((_nodeRootHost2 = nodeRootHost) != null && (_nodeRootHost2 = _nodeRootHost2.ownerDocument) != null && _nodeRootHost2.contains(nodeRootHost));
     }
   }
   return attached;
@@ -208,7 +206,8 @@ var isHidden = function isHidden2(node, _ref) {
       return !visible;
     }
   }
-  if (getComputedStyle(node).visibility === "hidden") {
+  var _getComputedStyle = getComputedStyle(node), visibility = _getComputedStyle.visibility;
+  if (visibility === "hidden" || visibility === "collapse") {
     return true;
   }
   var isDirectSummary = matches.call(node, "details>summary:first-of-type");
@@ -361,7 +360,7 @@ var isFocusable = function isFocusable2(node, options) {
   return isNodeMatchingSelectorFocusable(options, node);
 };
 
-// ../../node_modules/focus-trap/dist/focus-trap.esm.js
+// node_modules/focus-trap/dist/focus-trap.esm.js
 function _arrayLikeToArray(r, a) {
   (null == a || a > r.length) && (a = r.length);
   for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
@@ -1272,7 +1271,7 @@ var createFocusTrap = function createFocusTrap2(elements, userOptions) {
   return trap;
 };
 
-// ../../node_modules/@vueuse/integrations/useFocusTrap.mjs
+// node_modules/@vueuse/integrations/useFocusTrap.mjs
 function useFocusTrap(target, options = {}) {
   let trap;
   const { immediate, ...focusTrapOptions } = options;
@@ -1339,7 +1338,7 @@ export {
 
 tabbable/dist/index.esm.js:
   (*!
-  * tabbable 6.4.0
+  * tabbable 6.5.1
   * @license MIT, https://github.com/focus-trap/tabbable/blob/master/LICENSE
   *)
 
