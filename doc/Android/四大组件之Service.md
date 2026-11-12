@@ -1,6 +1,12 @@
 # Service
 
+## 使用入口：先解决问题，再做验证
 
+执行满足平台规则的服务工作或提供绑定接口。
+
+**先做基本操作**：先区分 started/bound，完成注册、启动或绑定和停止，验证权限与后台限制再分析生命周期。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
+
+**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
 
 ## 是什么？
 
@@ -109,7 +115,7 @@ WorkManager.getInstance(context).enqueue(request);
 
 
 
-##  面试高频必问
+## 核心要点深入
 
 
 
@@ -123,7 +129,7 @@ WorkManager.getInstance(context).enqueue(request);
 
 ### Q2: 为什么有了 Service 还要有 IntentService？（或现在的 WorkManager）
 
-- **IntentService**（已弃用，但面试常问）：它是 Service 的子类，内置了 `HandlerThread`。它会自动开启子线程处理任务，且在任务完成后**自动停止**。
+- **IntentService**（已弃用，但机制经典）：它是 Service 的子类，内置了 `HandlerThread`。它会自动开启子线程处理任务，且在任务完成后**自动停止**。
 - **现代方案**：Android 8.0+ 推荐使用 `WorkManager`（处理持久性任务）或 `JobIntentService`。
 
 ### Q3: Activity 怎么和 Service 交互？

@@ -4,6 +4,14 @@ title: Android Jetpack之ViewModel与LiveData
 
 # Android Jetpack之ViewModel与LiveData
 
+## 使用入口：先解决问题，再做验证
+
+把页面状态从 Activity/Fragment 中分离并管理观察生命周期。
+
+**先做基本操作**：先在 ViewModel 加载数据，页面观察并显示 loading/error，验证旋转与销毁，再讨论状态恢复和内部机制。完整前置实践见[基础入口](/doc/Android/Android应用基本开发与验证)。
+
+**再逐步深入**：用途与基本 API → 场景与失败 → 原理/源码 → 取舍与验证。
+
 `ViewModel` 和 `LiveData` 是 Android Jetpack 中最常见的一组组件，核心价值是把页面状态和生命周期解耦，避免 Activity/Fragment 过度臃肿。
 
 ## 1. ViewModel 是什么？
@@ -61,7 +69,7 @@ class MainActivity : AppCompatActivity() {
 
 - `setValue()` 必须在主线程调用，值会立即分发。
 - `postValue()` 可在子线程调用，最终会切回主线程更新。
-- 多次快速 `postValue()` 时，可能只看到最后一次结果，这是常见面试点。
+- 多次快速 `postValue()` 时，可能只看到最后一次结果，这是关键机制之一。
 
 ## 7. ViewModel 为什么不会因横竖屏切换而丢失？
 
@@ -101,7 +109,7 @@ class MainActivity : AppCompatActivity() {
 - 使用事件包装类。
 - 或直接改用 `SharedFlow`/Channel。
 
-## 11. 常见面试题
+## 11. 常见核心问题
 
 ### Q1: ViewModel 可以持有 Context 吗？
 A: 普通 ViewModel 不建议持有 Activity/Fragment Context，否则容易泄漏。若确实需要应用级 Context，可使用 `AndroidViewModel` 持有 `Application`。
@@ -115,9 +123,9 @@ A: 因为它内部会感知 `LifecycleOwner` 状态，只在活跃状态下派�
 ### Q4: `observeForever()` 为什么要慎用？
 A: 因为它不受生命周期管理，必须手动移除观察者，否则容易造成泄漏或无意义回调。
 
-### Q5: 现在都用 Flow 了，为什么面试还问 LiveData？
-A: 因为大量存量项目和 Jetpack 基础题仍然围绕 LiveData 展开，而且它能帮助面试官判断你是否理解生命周期感知和状态分发的基本模型。
+### Q5: 现在都推荐 Flow 了，为什么仍需深入理解 LiveData？
+A: 因为大量存量项目和 Jetpack 体系仍然依赖 LiveData，而且它能帮助我们深刻理解生命周期感知和状态分发的设计哲学。
 
 ## 12. 小结
 
-ViewModel 的关键词是“跨配置变更保存状态”，LiveData 的关键词是“生命周期感知观察”。面试里把这两个职责边界说清楚，基本就够了。
+ViewModel 的关键词是“跨配置变更保存状态”，LiveData 的关键词是“生命周期感知观察”。将这两个职责边界彻底厘清，便掌握了该组件的设计精髓。

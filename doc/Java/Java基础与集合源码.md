@@ -4,10 +4,18 @@ title: Java 基础与集合源码深度
 
 # Java 基础与集合源码深度
 
+## 使用入口：先解决问题，再做验证
+
+正确选择集合并满足对象相等契约。
+
+**先做基本操作**：先实现 List 遍历、Set 去重与 Map 查询，验证重复值与可变 key，再分析哈希、扩容和并发。初次学习可先完成[本模块基础实践](/doc/Java/Java语言基础与日常开发)。
+
+**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
+
 ## 1. `==` 与 `equals`，以及 `hashCode()` 契约
 
 ### 核心机制
-- `==` 比对的是物理内存地址（引用类型）或数值（基本类型）。
+- `==` 对引用比较是否指向同一个对象，对基本类型比较对应值；对象身份不等于可直接观测的物理内存地址。
 - `Object.equals()` 默认实现就是 `==`。
 - `hashCode()` 映射哈希码。哈希集合（`HashMap`, `HashSet`）定位桶索引依赖公式：`index = (n - 1) & hash`。
 - **致命大坑**：若只重写 `equals` 而不重写 `hashCode`，即使业务上两对象完全等价，也会因为落入不同的桶位，导致哈希表 `get()` 查找返回 `null`，甚至引发内存泄漏。
@@ -83,7 +91,7 @@ public class HashMapConcurrenceBug {
         }
         latch.await();
         // 预期大小: 100 * 1000 = 100,000
-        System.out.println("实际存入元素量: " + map.size()); // 必然小于 100000，发生了并发覆盖写
+        System.out.println("实际存入元素量: " + map.size()); // 可能小于 100000；并发问题不保证每次运行都复现
     }
 }
 ```
@@ -95,4 +103,4 @@ public class HashMapConcurrenceBug {
 - **JDK 1.7**：基于 `Segment` 分段锁（继承自 `ReentrantLock`），默认并发度 16，锁粒度是一个分段数组。
 - **JDK 1.8**：移除 Segment，采用 **`Node 数组 + CAS + synchronized`**，锁粒度细化到**单个桶位的头节点**。
 - **为什么使用 synchronized 而不是 ReentrantLock？**
-  - JVM 底层对 `synchronized` 做了偏向锁、轻量级锁、锁粗化、锁消除等多层编译期与运行时优化，在争用较小时开销远低于 `ReentrantLock` 对象；同时内存开销更小。
+  - JVM 底层对 `synchronized` 做了锁消除、锁粗化及不同版本的锁实现优化；具体性能取决于 JDK 和竞争模式。偏向锁属于旧版本机制，不能作为现代 JDK 的普遍结论。

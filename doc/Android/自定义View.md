@@ -4,7 +4,7 @@ title: Android 自定义View
 
 # Android 自定义View
 
-自定义 View 是中高级 Android 面试常见题，通常会问测量、布局、绘制流程，以及 `onMeasure()`、`onLayout()`、`onDraw()` 的职责区别。
+自定义 View 是 Android 进阶的核心能力，关键在于掌握测量、布局、绘制完整流程，以及 `onMeasure()`、`onLayout()`、`onDraw()` 的职责分工。
 
 ## 1. 为什么要自定义 View？
 
@@ -37,7 +37,7 @@ title: Android 自定义View
 2. `layout`
 3. `draw`
 
-面试里通常简称为 `measure-layout-draw`。
+常归纳为 `measure-layout-draw` 三大阶段。
 
 ## 4. `onMeasure()` 做什么？
 
@@ -74,7 +74,7 @@ title: Android 自定义View
 - 过度复杂的 Path/Shader 计算。
 - 没有处理好硬件加速兼容。
 
-## 10. 常见面试题
+## 10. 常见核心问题
 
 ### Q1: `wrap_content` 为什么在自定义 View 中常常失效？
 A: 因为如果你不在 `onMeasure()` 中处理自己的默认尺寸，系统可能只能按父容器给的约束走，导致表现不符合预期。
@@ -93,4 +93,4 @@ A: 通常通过 `attrs.xml` 声明属性，在构造函数中通过 `obtainStyle
 
 ## 11. 小结
 
-自定义 View 的面试核心是流程和职责：`onMeasure` 定大小，`onLayout` 定位置，`onDraw` 负责画。只要这三层边界讲清楚，再补一点性能意识，回答就比较完整。
+自定义 View 的核心在于流程和职责：`onMeasure` 定大小，`onLayout` 定位置，`onDraw` 负责画。理清这三层边界并兼顾绘制性能，就掌握了其核心本质。

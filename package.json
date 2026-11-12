@@ -5,6 +5,13 @@
     "docs:preview": "vitepress preview"
   },
   "devDependencies": {
-    "vitepress": "^1.6.4" 
+    "mermaid": "^11.17.2",
+    "vitepress": "^1.6.4",
+    "vitepress-plugin-mermaid": "^2.0.17"
+  },
+  "overrides": {
+    "katex": "^0.19.1",
+    "esbuild": "^0.25.0",
+    "vite": "^6.4.6"
   }
 }

@@ -4,46 +4,15 @@ title: Compose与Flutter现代化声明式UI控件布局与优化全景指南
 
 # Compose 与 Flutter 现代化声明式 UI 控件布局与优化全景指南
 
-> 本文系统性归纳整理 **Jetpack Compose (Android 原生声明式)** 与 **Flutter (跨平台声明式)** 的布局哲学、核心控件一一对照表、经典业务布局 MVP 模板、布局测量机制深度剖析及**工业级布局性能优化五大铁律**。无论是 Android 原生转型还是 Flutter 跨端进阶，读完本文均可建立系统性心智模型。
+## 使用入口：先解决问题，再做验证
 
----
+在两套声明式 UI 中实现同类组件和布局。
 
-## 一、 声明式 UI 核心心智模型对比
+**先做基本操作**：先各做表单、长列表和弹窗，验证尺寸、滚动与状态，再比较布局和更新机制。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
 
-现代 UI 开发彻底摒弃了传统命令式（findViewById / 动态 addView / 手动 setVisibility）的思路，全面转向 **状态驱动 UI（State-driven UI）**：
+**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
 
-$$\text{UI} = f(\text{State})$$
-
-界面只是当前业务状态（State）的一个轻量级投影。当状态改变时，框架自动负责重新计算并渲染需要更新的区域。
-
-```mermaid
-graph LR
-    subgraph Compose["Jetpack Compose"]
-        C_State["State<T>"] -->|触发重组 Recomposition| C_Composer["Composer & Slot Table"]
-        C_Composer -->|更新| C_LayoutNode["LayoutNode 树 (单次测量绘制)"]
-    end
-
-    subgraph Flutter["Flutter"]
-        F_State["StatefulWidget / State"] -->|setState / 通知| F_Widget["Widget 树 (不可变配置)"]
-        F_Widget -->|Diff 对比| F_Element["Element 树 (结构上下文)"]
-        F_Element -->|驱动布局重绘| F_Render["RenderObject 树 (计算几何与绘制)"]
-    end
-```
-
-### 核心机制对比总览
-
-| 架构维度 | Jetpack Compose | Flutter |
-| :--- | :--- | :--- |
-| **编程语言** | Kotlin | Dart |
-| **底层渲染引擎** | Android 原生 Canvas / Skia（Android 12+ 适配 RenderThread / Vulkan） | 自研 Impeller（新） / Skia（旧）通过 NDK 绕过系统 View |
-| **视图构建形态** | 纯 Kotlin 函数（带 `@Composable` 编译期注解） | 类继承（`StatelessWidget` / `StatefulWidget`） |
-| **树结构设计** | 单一的 `LayoutNode` 语义树，配合编译期注入的 `Slot Table` 记录执行状态 | 经典三棵树：`Widget`（配置） $\to$ `Element`（关系） $\to$ `RenderObject`（渲染） |
-| **更新机制** | **重组（Recomposition）**：根据位掩码与 Slot Table 智能跳过无变化函数 | **重建（Rebuild）**：重新调用 `build()` 方法，Element 树对比更新 RenderObject |
-| **样式与行为修饰** | **链式 Modifier**（单向装饰流，顺序敏感） | **Widget 嵌套包裹**（如 `Padding`、`Container`、`DecoratedBox`） |
-
----
-
-## 二、 各版块控件与布局全景对照速查表
+## 基本使用：控件与布局对照
 
 在日常开发中，95% 的页面布局均可由以下 8 大板块组合而成：
 
@@ -103,6 +72,45 @@ graph LR
 | :--- | :--- | :--- | :--- |
 | **标准页面骨架** | `Scaffold` | `Scaffold` | 集成标题栏（`topBar` vs `appBar`）、底部栏（`bottomBar` vs `bottomNavigationBar`）、悬浮按钮（`floatingActionButton`） |
 | **底部抽屉弹窗** | `ModalBottomSheet` | `showModalBottomSheet(...)` | 手势下拉收起、全屏沉浸拖拽手势 |
+
+---
+
+> 本文系统性归纳整理 **Jetpack Compose (Android 原生声明式)** 与 **Flutter (跨平台声明式)** 的布局哲学、核心控件一一对照表、经典业务布局 MVP 模板、布局测量机制深度剖析及**工业级布局性能优化五大铁律**。无论是 Android 原生转型还是 Flutter 跨端进阶，读完本文均可建立系统性心智模型。
+
+---
+
+## 一、 声明式 UI 核心心智模型对比
+
+现代 UI 开发彻底摒弃了传统命令式（findViewById / 动态 addView / 手动 setVisibility）的思路，全面转向 **状态驱动 UI（State-driven UI）**：
+
+$$\text{UI} = f(\text{State})$$
+
+界面只是当前业务状态（State）的一个轻量级投影。当状态改变时，框架自动负责重新计算并渲染需要更新的区域。
+
+```mermaid
+graph LR
+    subgraph Compose["Jetpack Compose"]
+        C_State["State<T>"] -->|触发重组 Recomposition| C_Composer["Composer & Slot Table"]
+        C_Composer -->|更新| C_LayoutNode["LayoutNode 树 (单次测量绘制)"]
+    end
+
+    subgraph Flutter["Flutter"]
+        F_State["StatefulWidget / State"] -->|setState / 通知| F_Widget["Widget 树 (不可变配置)"]
+        F_Widget -->|Diff 对比| F_Element["Element 树 (结构上下文)"]
+        F_Element -->|驱动布局重绘| F_Render["RenderObject 树 (计算几何与绘制)"]
+    end
+```
+
+### 核心机制对比总览
+
+| 架构维度 | Jetpack Compose | Flutter |
+| :--- | :--- | :--- |
+| **编程语言** | Kotlin | Dart |
+| **底层渲染引擎** | Android 原生 Canvas / Skia（Android 12+ 适配 RenderThread / Vulkan） | 自研 Impeller（新） / Skia（旧）通过 NDK 绕过系统 View |
+| **视图构建形态** | 纯 Kotlin 函数（带 `@Composable` 编译期注解） | 类继承（`StatelessWidget` / `StatefulWidget`） |
+| **树结构设计** | 单一的 `LayoutNode` 语义树，配合编译期注入的 `Slot Table` 记录执行状态 | 经典三棵树：`Widget`（配置） $\to$ `Element`（关系） $\to$ `RenderObject`（渲染） |
+| **更新机制** | **重组（Recomposition）**：根据位掩码与 Slot Table 智能跳过无变化函数 | **重建（Rebuild）**：重新调用 `build()` 方法，Element 树对比更新 RenderObject |
+| **样式与行为修饰** | **链式 Modifier**（单向装饰流，顺序敏感） | **Widget 嵌套包裹**（如 `Padding`、`Container`、`DecoratedBox`） |
 
 ---
 
@@ -435,6 +443,6 @@ Compose 的执行分为三大阶段：**组合（Composition） $\to$ 布局（L
 
 ::: tip 相关深度延伸学习
 - 想要了解原生 Android 布局历史与演变？请参阅：[Android 布局方式与层级深挖](/doc/Android/布局方式)
-- 想要深入 Compose 编译器底层机制？请参阅：[Compose 底层原理与高频面试实战](/doc/Android/Compose底层原理与高频面试实战)
-- 想要深入 Flutter 渲染机制三棵树？请参阅：[Flutter 渲染机制与 Widget 体系](/doc/flutter/渲染机制与Widget体系面试题)
+- 想要深入 Compose 编译器底层机制？请参阅：[Compose 底层原理与深度实战](/doc/Android/Compose底层原理与深度实战)
+- 想要深入 Flutter 渲染机制三棵树？请参阅：[Flutter 渲染机制与 Widget 体系](/doc/flutter/渲染机制与Widget体系核心解析)
 :::

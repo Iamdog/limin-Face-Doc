@@ -1,110 +1,64 @@
 ---
-title: Redis高并发缓存与一致性实战
+title: Redis 高并发缓存与一致性实战
 ---
 
-# Redis高并发缓存与一致性实战
+# Redis 高并发缓存与一致性实战
 
-## 🎯 招聘面试核心考点
-- **面试官设问**：“聊聊缓存穿透、缓存击穿、缓存雪崩的区别？在你们项目里怎么落地的？”
-- **深水区追问**：“热点 Key（例如大促爆款商品）在几万并发瞬间失效，如何确保不会把 MySQL 打死？双写一致性中，为什么‘先删缓存再改数据库’会被淘汰？‘先改数据库再删缓存’如何保证高并发下 100% 一致？如何通过 Canal 监听 Binlog 优雅解耦？”
+## 一、解决什么问题
 
----
+缓存减少重复查询和响应时间，代价是内存、运维和陈旧数据。先优化数据库查询并确认热点，再引入 Redis；强一致判断如付款和扣库存应以可靠业务数据源和并发约束为准。
 
-## 🏢 真实生产业务场景
-- **电商大促与秒杀商品详情页**：数万人同时抢购某一款特价手机，读 QPS 破 10 万。
-- **高频全局热搜排行榜 / 首页运营推荐位**：单 Key 访问密集，一旦失效即刻形成数据库压力洪峰。
+## 二、基本使用：从 Cache Aside 开始
 
----
+先在测试 Redis 中观察键值与过期：
 
-## ⚙️ 核心机制剖析：缓存三兄弟防范全景
-
-| 现象 | 本质根因 | 生产防线设计 |
-| :--- | :--- | :--- |
-| **缓存穿透** | 查询一个**数据库根本不存在**的数据（如恶意黑客传 `id = -1`），缓存和 DB 均无法命中，请求直击 DB | 1. **布隆过滤器（BloomFilter）** 快速预拦截<br>2. 缓存空对象（`set key "" EX 60` 短命兜底） |
-| **缓存击穿** | **单个热点 Key** 在高并发瞬间过期，海量请求同时并发回源查询 DB | 1. **分布式互斥锁（Mutex）**，仅允许一个线程查库回填<br>2. **逻辑过期时间**（异步线程续期，用户永不等待） |
-| **缓存雪崩** | **大量不同 Key 集中在同一时间过期**，或者 Redis 单点宕机，导致 DB 瞬间被打崩 | 1. 缓存过期时间加上**随机扰动值（如 10m + Random(0~300s)）**<br>2. 多级缓存（本地 Caffeine + 远程 Redis 集群） |
-
----
-
-## 💻 最小可运行 MVP 代码：逻辑过期时间防击穿
-
-逻辑过期方案中，Key 本身在 Redis 里永不过期（TTL 永久），我们将过期时间戳包装在 Value 对象里。当发现逻辑过期时，通过获取互斥锁启动**异步独立线程**去更新数据库和缓存，而当前并发请求**直接返回旧数据降级，业务丝毫不阻塞**！
-
-```java
-import java.time.LocalDateTime;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-public class CacheBreakdownService {
-
-    // 包装逻辑过期的缓存对象
-    static class RedisData<T> {
-        private LocalDateTime expireTime;
-        private T data;
-        public RedisData(T data, LocalDateTime expireTime) { this.data = data; this.expireTime = expireTime; }
-        public boolean isExpired() { return LocalDateTime.now().isAfter(expireTime); }
-        public T getData() { return data; }
-    }
-
-    private final ExecutorService CACHE_REBUILD_EXECUTOR = Executors.newFixedThreadPool(10);
-
-    // 查询热点商品逻辑
-    public String getHotProduct(Long id) {
-        String key = "product:hot:" + id;
-        
-        // 1. 从缓存读取逻辑对象
-        RedisData<String> redisData = mockGetFromRedis(key);
-
-        // 2. 判断是否逻辑过期
-        if (!redisData.isExpired()) {
-            return redisData.getData(); // 未过期，直接极速返回
-        }
-
-        // 3. 已经逻辑过期，尝试获取互斥锁（使用 Redis setnx）
-        String lockKey = "lock:product:" + id;
-        boolean isLockAcquired = mockTryLock(lockKey);
-
-        if (isLockAcquired) {
-            // 4. 获取锁成功，开启独立异步线程更新缓存，当前线程不等待
-            CACHE_REBUILD_EXECUTOR.submit(() -> {
-                try {
-                    System.out.println("[异步线程] 查询 MySQL 最新商品信息并重构缓存...");
-                    Thread.sleep(200); // 模拟耗时 DB 操作
-                    String freshDataFromDb = "最新商品详情_版本2.0";
-                    mockSaveRedis(key, new RedisData<>(freshDataFromDb, LocalDateTime.now().plusMinutes(30)));
-                } finally {
-                    mockReleaseLock(lockKey); // 释放锁
-                }
-            });
-        }
-
-        // 5. 无论是获取锁成功的线程还是没拿到锁的并发线程，先立即返回旧数据兜底！
-        return redisData.getData();
-    }
-
-    // 辅助模拟方法
-    private RedisData<String> mockGetFromRedis(String k) {
-        return new RedisData<>("旧缓存商品数据", LocalDateTime.now().minusSeconds(10)); // 故意模拟已过期
-    }
-    private boolean mockTryLock(String k) { return true; }
-    private void mockReleaseLock(String k) {}
-    private void mockSaveRedis(String k, RedisData<String> v) {}
-}
+```bash
+redis-cli SET product:1 '{"id":1,"name":"demo"}' EX 60
+redis-cli GET product:1
+redis-cli TTL product:1
+redis-cli DEL product:1
 ```
 
----
+基本读流程是查缓存 → 未命中查数据库 → 以合理 TTL 回填。写流程通常是数据库事务成功提交 → 删除相关缓存。定义序列化版本、key 命名、空值语义、容量和超时；缓存故障时要保护回源容量，不能把所有请求无限转到数据库。
 
-## ⚙️ 双写一致性终极方案：Canal 监听 Binlog 异步淘汰
+## 三、常见场景：穿透、击穿、雪崩
 
-面试中千万别只答“延迟双删”！延迟双删需要估算休眠时间（如 `Thread.sleep(500)`），在高并发下极其脆弱不可靠。
+| 问题 | 现象 | 常见措施与边界 |
+|---|---|---|
+| 穿透 | 不存在的数据持续回源 | 参数校验、空值短 TTL、布隆过滤；过滤器更新和误判要处理 |
+| 击穿 | 热点 key 失效后并发回源 | 请求合并、互斥重建、逻辑过期；获取锁失败需有降级与超时 |
+| 雪崩 | 大批过期或 Redis 故障 | TTL 抖动、多级缓存、限流、熔断；本地缓存也有失效传播问题 |
 
-### 工业级标准方案：Cache Aside + Canal 异步队列
-1. **写请求流程**：
-   - 应用程序直接更新 MySQL 数据库。
-   - **不需要**在业务代码里手写任何删除 Redis 缓存的代码。
-2. **异步同步链路**：
-   - MySQL 写入成功后生成 **Row 格式 Binlog**。
-   - 阿里开源中间件 **Canal** 伪装成 MySQL 从库（Slave），实时监听 Binlog 变更。
-   - Canal 解析出变更的表名与主键 ID，投递到 **RocketMQ / RabbitMQ**。
-   - 专门的缓存消费服务从 MQ 中拉取消息，调用 Redis 执行 `DEL key`。
-   - 若删除失败，利用 MQ 重试机制指数退避重试，**保证最终 100% 一致，业务代码完全解耦**。
+## 四、进阶使用：逻辑过期与异步重建
+
+逻辑过期保存数据和业务过期时间，在重建期间返回允许的旧数据。它适合推荐、详情等容忍陈旧的场景，不能默认用于余额、权限和库存判断。
+
+```text
+缓存不存在 → 受限回源或明确降级
+缓存新鲜 → 返回缓存
+缓存逻辑过期 → 尝试取得重建锁
+  取得锁 → 投递到有界执行器；任务结束按 owner token 释放
+  未取得锁 → 返回允许的旧值或降级
+```
+
+需要处理任务拒绝、重建失败、空缓存、缓存被淘汰和应用退出。锁设置过期与唯一 token，释放必须原子校验持有者；执行器要有界并监控积压。逻辑过期不要求所有 key 永久无物理 TTL，也不保证用户永远无等待。
+
+## 五、最后深入：双写竞态与最终一致性
+
+“数据库提交后删缓存”降低常见竞态，但删除失败、回源旧请求晚写入和异步延迟仍可能产生陈旧值。先明确允许窗口，再设计重试、TTL、版本校验或主动校准。
+
+Canal/CDC 可监听 binlog，由可靠链路触发缓存失效，减少业务侵入；也可以保留提交后的主动删除，以缩短窗口，并让 CDC 作补偿。它不是所有场景的唯一方案。
+
+需要维护消费位点、重试、重复/乱序处理、断点恢复、积压监控、schema 变更和数据校准。仅仅“Canal + MQ + DEL”不能保证所有故障下 100% 一致。要求强一致的读取应绕过普通缓存或采用满足该要求的专门协议。
+
+## 六、面试与验证
+
+| 基础题 | 场景追问 | 深入要点 |
+|---|---|---|
+| 为什么引入缓存？ | 加了缓存一定更快吗？ | 命中率、网络开销、容量与数据新鲜度 |
+| Cache Aside 怎么读写？ | 删缓存失败怎么办？ | 提交时机、可靠重试、TTL 和校准 |
+| 穿透/击穿/雪崩区别？ | Redis 宕机如何保护数据库？ | 回源限流、隔离、降级与实测 |
+| 逻辑过期怎么用？ | 旧余额能不能直接返回？ | 业务陈旧容忍、失败恢复和重建锁 |
+| CDC 能保证强一致吗？ | 延迟或乱序怎么处理？ | 位点、版本、补偿和允许窗口 |
+
+验证冷缓存、热点失效、重建失败、Redis 不可用、删除失败和读写交错，记录命中率、回源量、p95/p99 和陈旧窗口，再读 [大 Key 与集群治理](/doc/Java/Redis大Key热Key与集群治理实战)。

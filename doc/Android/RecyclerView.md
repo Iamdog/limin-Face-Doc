@@ -352,13 +352,13 @@ class LoanAdapter : BaseQuickAdapter<Loan, LoanAdapter.VH>() {
 
 [SmartRefreshLayout](https://github.com/scwang90/SmartRefreshLayout)  下拉刷新、上拉加载、二级刷新、淘宝二楼、RefreshLayout、OverScroll，Android智能下拉刷新框架，支持越界回弹、越界拖动，具有极强的扩展性，集成了几十种炫酷的Header和 Footer。
 
-## 常见面试题
+## 常见核心问题
 
 ### Q1: RecyclerView 为什么比 ListView 更强？
 A: 核心在于解耦。RecyclerView 把布局、动画、数据绑定、回收机制拆分成 `LayoutManager`、`ItemAnimator`、`Adapter`、`RecycledViewPool` 等模块，扩展性和可维护性都更强。
 
 ### Q2: RecyclerView 的缓存机制有哪些层级？
-A: 常见回答是四级缓存：`Scrap`、`CacheViews`、`ViewCacheExtension`、`RecycledViewPool`。面试时要补充一点：越靠前命中成本越低，命中 `CacheViews` 时甚至可能不走重新绑定。
+A: 核心机制是四级缓存：`Scrap`、`CacheViews`、`ViewCacheExtension`、`RecycledViewPool`。核心在于：越靠前命中成本越低，命中 `CacheViews` 时甚至可能不走重新绑定。
 
 ### Q3: `notifyDataSetChanged()` 为什么不推荐频繁使用？
 A: 因为它会让整个列表失去精细化更新能力，触发全量重绘和重新绑定，容易造成闪烁和性能浪费。更好的做法是使用 `notifyItemChanged()`、`notifyItemInserted()` 或 `DiffUtil` 做增量更新。
@@ -370,7 +370,7 @@ A: 当 RecyclerView 的尺寸不会随内容变化时，设置它可以避免每
 A: 用来区分不同类型的 Item，RecyclerView 会按 `viewType` 分类缓存和复用 ViewHolder。多布局列表、吸顶头部、图文混排都依赖它。
 
 ### Q6: `DiffUtil` 的核心价值是什么？
-A: 它能在旧数据和新数据之间计算最小更新集，只刷新真正变化的条目，减少 UI 抖动并提升列表更新效率。面试里通常还会问 `areItemsTheSame` 和 `areContentsTheSame` 的区别。
+A: 它能在旧数据和新数据之间计算最小更新集，只刷新真正变化的条目，减少 UI 抖动并提升列表更新效率。同时需要深入理解 `areItemsTheSame` 和 `areContentsTheSame` 的区别。
 
 ### Q7: 为什么嵌套 RecyclerView 容易卡顿？怎么优化？
 A: 因为会放大 `onCreateViewHolder`、测量和预取成本。优化方向包括共享 `RecycledViewPool`、设置 `setInitialPrefetchItemCount()`、减少内层列表复杂度，或者改成单 RecyclerView 多类型布局。

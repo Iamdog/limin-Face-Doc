@@ -1,5 +1,13 @@
 # Android Fragment
 
+## 使用入口：先解决问题，再做验证
+
+复用页面片段并管理独立的视图生命周期。
+
+**先做基本操作**：先用 FragmentContainerView 和事务展示页面，验证返回与视图重建，再管理 binding/通信和状态。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
+
+**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
+
 ## 概述
 Fragment 是 Android 中表示用户界面的一部分，可以在 Activity 中组合多个 Fragment 来构建多窗格 UI，并在 Activity 运行时对其进行管理。
 
@@ -35,7 +43,7 @@ Fragment 是 Android 中表示用户界面的一部分，可以在 Activity 中�
 - Fragment 支持返回栈操作
 - 可控制返回键行为
 
-## 常见面试题
+## 常见核心问题
 
 ### Q1: Fragment 与 Activity 的区别是什么？
 A: Fragment 是 Activity 的一部分，是轻量级的 UI 组件。Activity 是应用的组成单位，Fragment 依赖于 Activity 存在。Fragment 有自己的生命周期，可以被重用。

@@ -4,7 +4,15 @@ title: Android Window与DecorView
 
 # Android Window与DecorView
 
-`Window`、`DecorView`、`ViewRootImpl` 是 Android UI 体系的高频面试点。很多问题比如界面显示、事件分发、窗口层级、Dialog/PopupWindow 区别，底层都能追到这几个对象。
+## 使用入口：先解决问题，再做验证
+
+正确显示页面、弹窗并处理窗口尺寸与 Insets。
+
+**先做基本操作**：先通过 Activity 设置内容、展示 Dialog 并测试返回/旋转/边到边，再梳理 Window 与 ViewRootImpl。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
+
+**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
+
+`Window`、`DecorView`、`ViewRootImpl` 是 Android UI 体系的核心支柱。很多关键机制比如界面显示、事件分发、窗口层级、Dialog/PopupWindow 区别，底层都能追到这几个对象。
 
 ## 1. Window 是什么？
 
@@ -22,7 +30,7 @@ title: Android Window与DecorView
 
 - `ViewRootImpl` 是连接 WindowManager 和 View 树的桥梁。
 - 它不属于普通 View，但负责触发 `measure/layout/draw`，也负责事件分发入口和屏幕刷新调度。
-- 面试中经常把它和 `performTraversals()` 放在一起考。
+- 它与 `performTraversals()` 紧密关联，属于核心流程。
 
 ## 4. Activity、Window、DecorView 三者关系
 
@@ -44,7 +52,7 @@ title: Android Window与DecorView
 3. 布局资源被 inflate 成 View。
 4. 业务 View 被添加到 DecorView 的内容容器中。
 
-所以面试里如果问“Activity 为什么能显示页面”，答案不能只说“因为 setContentView”，还要补上 Window 和 DecorView。
+所以理解“Activity 为什么能显示页面”，不能只停留于“因为调用了 setContentView”，更要掌握 Window 和 DecorView 的运作机制。
 
 ## 6. 为什么 `findViewById()` 能找到布局里的控件？
 
@@ -55,7 +63,7 @@ title: Android Window与DecorView
 
 - 管理窗口的添加、删除、更新。
 - Activity、Dialog、Toast、PopupWindow 的显示都和 WindowManager 有关系。
-- 面试中常问“Dialog 和 Activity 为什么都能显示界面”，核心答案就是它们最终都通过窗口机制显示。
+- 探讨“Dialog 和 Activity 为什么都能显示界面”，核心结论就是它们最终都依赖窗口机制来呈现。
 
 ## 8. Dialog 和 PopupWindow 有什么区别？
 
@@ -74,9 +82,9 @@ title: Android Window与DecorView
 
 - 因为 View 树的绘制、事件、状态更新由主线程统一调度。
 - ViewRootImpl 在线程检查时会限制非创建线程更新 UI。
-- 面试中可补充 `CalledFromWrongThreadException`。
+- 可重点关注 `CalledFromWrongThreadException` 的触发场景。
 
-## 10. 常见面试题
+## 10. 常见核心问题
 
 ### Q1: Activity 为什么不直接继承 View，却能显示界面？
 A: 因为 Activity 本质是页面控制器，它通过 Window 管理界面，而真正显示的是 Window 里的 DecorView 和内容 View。

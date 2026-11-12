@@ -11,41 +11,45 @@ hero:
       text: 快速开始
       link: /doc/前言
     - theme: alt
-      text: 移动端 (Android/Flutter)
+      text: 移动端与跨端
       link: /doc/Android/前言
     - theme: alt
-      text: Web前端 (Vue 3)
-      link: /doc/vue/前言
+      text: 前端与全栈
+      link: /doc/Vue/前言
     - theme: alt
-      text: Java后端与中间件
+      text: 后端与存储
       link: /doc/Java/前言
     - theme: alt
-      text: 社区与工具资源
+      text: 社区与技术资源
       link: /doc/社区资源/第三方论坛与技术社区导航
 
 features:
   - icon: 📱
     title: 移动端硬核底座 (Android & Flutter)
-    details: 深入 Android 运行时底层、Handler/Binder 机制、RecyclerView 四级缓存、Compose 与 Flutter 渲染管线、性能调优与自动化发包实战。
+    details: 从 Kotlin/Dart、页面、请求、状态与存储开始，逐步学习生命周期、失败处理、性能、Handler/Binder 和渲染；含打包与 16KB 页面大小兼容治理。
     link: /doc/Android/前言
   - icon: ⚡
-    title: 现代 Web 大前端与工程化 (Vue 3)
-    details: Vue 3 底层响应式剖析、Webpack 与 Vite 架构对决、父子与透传通信、虚拟列表万级渲染、组件级内存瘦身与优化。
-    link: /doc/vue/前言
+    title: 现代 Web 大前端与工程化 (Vue 3 / TS)
+    details: 按阅读地图分层覆盖 CSS 响应式布局、Vue 组件与状态管理、TypeScript、渲染 Diff、性能优化、Vite 分包与发布回滚。每篇配图、速览表与实战检查清单。
+    link: /doc/Vue/前言
   - icon: ☕
     title: Java 服务端与高并发中间件
-    details: JVM 深度调优、JMM 并发编程与线程池、Spring 事务失效防线、Redis 缓存穿透击穿雪崩防御与 MQ 延迟任务实战。
+    details: 从 Java 语言、Spring Boot 业务接口、MyBatis 与 SQL 开始，逐步学习校验、事务、权限、Redis、消息队列、并发与故障排查；配有示例、前置条件和验证清单。
     link: /doc/Java/前言
   - icon: 🐬
     title: MySQL 底层原理与索引调优
-    details: B+ 树容量数学推导、三大日志 WAL 机制、Buffer Pool 改良 LRU 算法、MVCC 隔离与高并发大字段垂直建表军规。
-    link: /doc/MySQL/MySQL底层原理日志体系与BufferPool
+    details: 从 SQL、建表、条件更新和事务实验开始，逐步学习索引、MVCC、日志、复制与高可用；补充备份恢复、数据库变更和生产维护。
+    link: /doc/MySQL/前言
   - icon: 🛠️
     title: 全栈高并发场景与政企上架
     details: 大文件切片与断点续传、SSE 流式交互、接口防刷攻防、计算机网络协议全解、Docker 容器编排与专有钉钉/浙政钉上架实战。
-    link: /doc/Fullstack/大前端全栈通俗心智模型与实战全景
+    link: /doc/Fullstack/前言
+  - icon: 🧩
+    title: 系统设计与场景题
+    details: 四步答题框架与容量估算、秒杀全链路逐层削峰、四种限流算法与 Redis Lua、幂等矩阵、Redisson 看门狗源码、分库分表跨分片难题。
+    link: /doc/SystemDesign/前言
   - icon: 🤖
     title: AI 生产力与前沿极客生态
-    details: Vibe Coding 规范、MCP 架构集成、大模型 RAG 技术栈、IDE 历史版本归档矩阵与顶级极客社区导航。
+    details: 先完成模型调用、输出校验和小型 RAG，再学习工具、工作流、评测、成本与权限；附资料验证方法和社区导航。
     link: /doc/AI/VibeCoding与MCP生态实战-Stitch-Superpowers-Trellis与UIUXProMax
 ---

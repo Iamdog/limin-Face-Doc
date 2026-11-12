@@ -4,7 +4,15 @@ title: Android AMS-WMS-PMS
 
 # Android AMS-WMS-PMS
 
-AMS、WMS、PMS 是 Android Framework 面试里最常见的三大系统服务。即使不深入源码，也要知道它们各自管什么、和四大组件或 UI 系统怎么关联。
+## 使用入口：先解决问题，再做验证
+
+解释页面调度、窗口管理和包安装查询中的系统角色。
+
+**先做基本操作**：先复现启动 Activity、改变窗口和安装查询应用，保留 adb/logcat 证据再沿相关服务追踪。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
+
+**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
+
+AMS、WMS、PMS 是 Android Framework 里最核心的三大系统服务。即使不深入底层源码，也要掌握它们各自管什么、和四大组件或 UI 系统怎么关联。
 
 ## 1. AMS 是什么？
 
@@ -73,9 +81,9 @@ PMS 全称 `PackageManagerService`。
 
 - 因为 Activity、Dialog、Toast 等最终都要变成系统可管理的窗口。
 - WMS 负责这些窗口在系统中的组织和显示规则。
-- 面试中如果能把 WMS、Window、DecorView 串起来，回答会更完整。
+- 如果能把 WMS、Window、DecorView 串联理解，认知会更完整系统。
 
-## 7. PMS 在面试中常见问法
+## 7. PMS 关键要点与常见探讨
 
 - 安装流程谁负责？
 - 包名和签名信息从哪来？
@@ -86,7 +94,7 @@ PMS 全称 `PackageManagerService`。
 - `PackageManager` 是应用侧 API。
 - 真正做包管理工作的核心服务是 PMS。
 
-## 8. AMS 在面试中常见问法
+## 8. AMS 关键要点与常见探讨
 
 - Activity 启动流程谁调度？
 - 应用进程谁管理？
@@ -96,7 +104,7 @@ PMS 全称 `PackageManagerService`。
 
 - 都离不开 AMS。
 
-## 9. 常见面试题
+## 9. 常见核心问题
 
 ### Q1: `ActivityManager` 和 AMS 是什么关系？
 A: `ActivityManager` 是应用层可调用的管理类或接口封装，AMS 是系统服务本体，前者很多能力最终都通过 Binder 调到后者。

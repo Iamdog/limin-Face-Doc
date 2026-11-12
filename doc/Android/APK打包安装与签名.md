@@ -4,7 +4,7 @@ title: Android APK打包安装与签名
 
 # Android APK打包安装与签名
 
-`APK`、签名、安装流程、AAB、混淆压缩，是 Android 面试里“工程化”方向的常见题，尤其适合区分是否真正做过发布和上线。
+`APK`、签名、安装流程、AAB、混淆压缩，是 Android 工程化体系的核心基石，体现了完整的打包发布与上线实践经验。
 
 ## 1. APK 是什么？
 
@@ -131,7 +131,7 @@ graph TD
 - 无用资源清理
 - ABI 拆分
 
-## 10. 常见面试题
+## 10. 常见核心问题
 
 ### Q1: APK 和 AAB 的区别是什么？
 A: APK 是最终安装包，AAB 是发布包。AAB 主要用于让应用商店按设备维度做更细粒度分发。
@@ -155,4 +155,7 @@ A: 因为对齐后资源读取效率更高，有助于系统按页映射和访�
 ::: tip 深入工程实践
 关于 **Keystore 签名生成命令、v2/v3 验签、zipalign 对齐、Gradle 多渠道打包（Product Flavors / Walle）及 APK 自动重命名** 的具体脚本与命令行实操，请参阅：
 👉 [Android发包打包、签名与ADB调试命令全集](/doc/Android/Android发包打包与ADB调试命令全集)
+
+关于 **R8 / ProGuard 编译流水线、Keep 语法边界、反射/JSON/JNI 避坑、线上 mapping.txt 堆栈还原与母版配置**，请参阅：
+👉 [Android代码混淆与R8高级实战全解](/doc/Android/Android代码混淆与R8高级实战全解)
 :::

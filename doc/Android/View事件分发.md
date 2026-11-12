@@ -4,8 +4,16 @@ title: View事件分发机制与滑动冲突终极治理
 
 # View事件分发机制与滑动冲突终极治理
 
-## 🎯 招聘面试核心考点
-- **面试官设问**：“请详细阐述 Android 事件分发的三大核心方法（`dispatchTouchEvent`、`onInterceptTouchEvent`、`onTouchEvent`）的调用时序与责任链逻辑？”
+## 使用入口：先解决问题，再做验证
+
+让点击、长按和嵌套滑动按预期响应。
+
+**先做基本操作**：在 dispatchTouchEvent/onInterceptTouchEvent/onTouchEvent 记录 DOWN/MOVE/UP/CANCEL，再验证父子争夺事件。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
+
+**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
+
+## 🎯 核心技术原理与实战归纳
+- **核心设问与思考**：“请详细阐述 Android 事件分发的三大核心方法（`dispatchTouchEvent`、`onInterceptTouchEvent`、`onTouchEvent`）的调用时序与责任链逻辑？”
 - **深水区追问**：“如果子 View 消费了 `ACTION_DOWN` 事件，但父 ViewGroup 在随后的 `ACTION_MOVE` 中决定拦截，子 View 会收到什么事件？**解决滑动冲突的‘外部拦截法’与‘内部拦截法’**的底层代码模板分别是什么？`requestDisallowInterceptTouchEvent()` 的作用阶段是什么？”
 
 ---
@@ -61,7 +69,7 @@ flowchart TD
 
 ---
 
-## 二、 关键执行边界特例（面试高频坑点）
+## 二、 关键执行边界特例（核心高频坑点）
 
 1. **`ACTION_CANCEL` 机制（责任转移）**：
    - 如果子 View 已经消费了 `ACTION_DOWN` 事件，但在用户手指滑动过程中（`ACTION_MOVE`），父容器在 `onInterceptTouchEvent()` 中判定符合自身滑动条件并返回了 `true`。

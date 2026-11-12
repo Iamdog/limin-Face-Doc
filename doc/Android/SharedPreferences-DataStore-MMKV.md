@@ -4,7 +4,15 @@ title: Android SharedPreferences-DataStore-MMKV
 
 # Android SharedPreferences / DataStore / MMKV
 
-本地轻量存储是 Android 高频题。面试里常问 `SharedPreferences` 的缺点、`DataStore` 为什么出现、`MMKV` 为什么快。
+## 使用入口：先解决问题，再做验证
+
+保存设置与小型数据并选择合适存储。
+
+**先做基本操作**：先完成写入、读取、默认值与升级迁移，验证并发和进程重启；结构化业务数据另选数据库。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
+
+**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
+
+本地轻量存储是 Android 开发的基本功。核心要理清 `SharedPreferences` 的缺点、`DataStore` 为什么出现、`MMKV` 为什么快。
 
 ## 1. SharedPreferences 是什么？
 
@@ -70,7 +78,7 @@ title: Android SharedPreferences-DataStore-MMKV
 - 更关注性能。
 - 已有团队技术栈或存量项目普遍使用。
 
-## 9. 面试高频问题
+## 9. 核心高频问题
 
 ### Q1: SharedPreferences 为什么不适合大量高频写入？
 A: 因为它本质还是文件型持久化，频繁写入会带来性能和阻塞风险，不适合作为重度缓存或数据库替代品。

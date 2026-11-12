@@ -4,7 +4,15 @@ title: Android Jetpack之Room
 
 # Android Jetpack之Room
 
-`Room` 是 Jetpack 提供的 SQLite ORM 封装层，目标是让本地数据库访问更安全、更清晰、更容易维护。面试里常和 SQLite、缓存、异步查询、数据层设计一起考。
+## 使用入口：先解决问题，再做验证
+
+用类型化接口保存结构化业务数据。
+
+**先做基本操作**：先定义 Entity/DAO/Database 完成插入查询，测试迁移和事务，再讨论生成代码与线程限制。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
+
+**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
+
+`Room` 是 Jetpack 提供的 SQLite ORM 封装层，目标是让本地数据库访问更安全、更清晰、更容易维护。它常与 SQLite、缓存、异步查询、数据层设计结合使用。
 
 ## 1. Room 是什么？
 
@@ -72,7 +80,7 @@ abstract class AppDatabase : RoomDatabase() {
 
 - 因为磁盘 IO 不确定性高，容易阻塞主线程。
 - Room 默认就禁止主线程查询，除非显式开启 `allowMainThreadQueries()`。
-- 面试里最好补一句：这个开关只适合 demo，不适合正式项目。
+- 核心注意点：这个开关只适合 demo 测试，切勿在正式项目中使用。
 
 ## 6. Room 和 Flow / LiveData 的结合
 
@@ -104,9 +112,9 @@ fun observeUsers(): Flow<List<User>>
 
 - 可使用 `@Transaction` 标注需要原子执行的方法。
 - 适合“先查再改”“多表联动写入”等场景。
-- 面试里要强调：事务的价值是保证一组操作要么都成功，要么都失败。
+- 核心要点：事务的核心价值是保证一组操作要么全部成功，要么全部回滚。
 
-## 10. 常见面试题
+## 10. 常见核心问题
 
 ### Q1: Room 和 SQLite 的关系是什么？
 A: Room 是对 SQLite 的上层封装，不是替代 SQLite 的另一种数据库。底层数据仍然最终落在 SQLite 中。
@@ -125,4 +133,4 @@ A: 不能。Room 适合结构化关系数据；MMKV、DataStore 更适合轻量 
 
 ## 11. 小结
 
-Room 的关键词是“SQLite 封装、编译期校验、DAO、迁移、与 Jetpack 集成”。面试中只要把它和 SQLite、Repository、线程模型的关系讲清楚，基本就能过关。
+Room 的核心关键词是“SQLite 封装、编译期校验、DAO、数据库迁移、与 Jetpack 集成”。将其与 SQLite、Repository、线程模型的关系理顺，便能真正融会贯通。

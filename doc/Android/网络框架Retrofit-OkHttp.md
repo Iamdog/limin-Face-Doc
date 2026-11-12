@@ -4,7 +4,35 @@ title: Android 网络框架Retrofit-OkHttp
 
 # Android 网络框架 Retrofit / OkHttp
 
-这套组合是 Android 网络面试高频。核心回答框架：分层职责、请求链路、拦截器、缓存、超时与重试。
+## 使用入口：先解决问题，再做验证
+
+声明业务接口并统一超时、取消和错误。
+
+**先做基本操作**：先创建单例 OkHttpClient 和 Retrofit 接口完成一次请求，检查非 2xx、解析错误和页面取消。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
+
+**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
+
+### 基本代码：声明与创建接口
+
+```kotlin
+interface ProductApi {
+    @GET("products/{id}")
+    suspend fun getProduct(@Path("id") id: Long): ProductDto
+}
+val client = OkHttpClient.Builder()
+    .connectTimeout(10, TimeUnit.SECONDS)
+    .callTimeout(20, TimeUnit.SECONDS)
+    .build()
+val api = Retrofit.Builder()
+    .baseUrl("https://api.example.com/")
+    .client(client)
+    .addConverterFactory(GsonConverterFactory.create())
+    .build().create(ProductApi::class.java)
+```
+
+需要 Retrofit、OkHttp、对应 Converter 依赖，以及项目定义的 ProductDto。放在受控协程作用域调用，分类处理 HTTP/IO/解析错误，保留取消语义；baseUrl、响应模型和 TLS 配置按实际服务设置。
+
+这套组合是 Android 网络层的核心骨干。核心归纳框架：分层职责、请求链路、拦截器、缓存、超时与重试。
 
 ## 1. 职责分工
 
@@ -44,7 +72,7 @@ title: Android 网络框架Retrofit-OkHttp
 - OkHttp 提供可靠底层能力。
 - 分层清晰，便于测试、扩展和治理。
 
-## 6. 面试高频问题
+## 6. 核心高频问题
 
 ### Q1: Retrofit 本身能发网络请求吗？
 A: 不能独立完成。它通常依赖 OkHttp 作为 `Call.Factory` 执行请求。
@@ -63,4 +91,4 @@ A: 需要指数退避、重试上限、幂等约束和熔断降级，而不是�
 
 ## 7. 小结
 
-面试里把 Retrofit 和 OkHttp 的边界讲清楚，再补拦截器、缓存和超时重试策略，基本就能覆盖大部分问题。
+把 Retrofit 和 OkHttp 的边界理清，再深入掌握拦截器、缓存和超时重试策略，便能彻底攻克网络层技术难点。
