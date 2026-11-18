@@ -1,16 +1,8 @@
 ---
-title: Compose与Flutter现代化声明式UI控件布局与优化全景指南
+title: Compose与Flutter现代化声明式UI控件布局与优化指南
 ---
 
-# Compose 与 Flutter 现代化声明式 UI 控件布局与优化全景指南
-
-## 使用入口：先解决问题，再做验证
-
-在两套声明式 UI 中实现同类组件和布局。
-
-**先做基本操作**：先各做表单、长列表和弹窗，验证尺寸、滚动与状态，再比较布局和更新机制。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
+# # Compose 与 Flutter 现代化声明式 UI 控件布局与优化指南
 
 ## 基本使用：控件与布局对照
 
@@ -48,7 +40,7 @@ title: Compose与Flutter现代化声明式UI控件布局与优化全景指南
 | **层叠布局** | `Box { ... }` | `Stack(children: [...])` | 默认层叠顺序：后声明的组件覆盖在先声明的组件上方 |
 | **内部对齐** | `Modifier.align(Alignment.BottomEnd)` | `Align(alignment: Alignment.bottomRight)` | 锚定到父容器的特定方位（九宫格方位点） |
 | **绝对边距定位** | `Modifier.padding(...)` / `offset(...)` | `Positioned(top: 10, right: 10, child: ...)` | 距离父边缘的绝对像素偏移 |
-| **铺满父容器大小** | `Modifier.matchParentSize()` | `Positioned.fill(child: ...)` | 尺寸与父容器严格等大，且**不参与父容器自身大小的测量计算**，避免死循环 |
+| **铺满父容器大小** | `Modifier.matchParentSize()` | `Positioned.fill(child: ...)` | 尺寸与父容器严格等大，且不参与父容器自身大小的测量计算，避免死循环 |
 
 ### 5. 流式折行布局（标签云/动态筛选器）
 
@@ -61,7 +53,7 @@ title: Compose与Flutter现代化声明式UI控件布局与优化全景指南
 
 | 布局/控件场景 | Jetpack Compose | Flutter | 核心参数/关键属性说明 |
 | :--- | :--- | :--- | :--- |
-| **纵向高效列表** | `LazyColumn { items(list, key = {...}) }` | `ListView.builder(itemBuilder: ...)` | 只创建可见区域组件；**必须声明稳定 key** 防止增删时错误刷新 |
+| **纵向高效列表** | `LazyColumn { items(list, key = {...}) }` | `ListView.builder(itemBuilder: ...)` | 只创建可见区域组件；必须声明稳定 key 防止增删时错误刷新 |
 | **横向高效列表** | `LazyRow { ... }` | `ListView.builder(scrollDirection: Axis.horizontal)` | 常见于轮播图、横向分类 Tab 栏 |
 | **网格布局** | `LazyVerticalGrid(columns = GridCells.Fixed(2))` | `GridView.builder(gridDelegate: ...)` | 等宽网格、自适应列宽（`GridCells.Adaptive(120.dp)`） |
 | **复杂异构滚动视图** | `LazyColumn` 嵌套不同项 / 吸顶 `stickyHeader` | `CustomScrollView(slivers: [SliverAppBar, SliverList])` | 统一滚动轴，解决多列表嵌套滑动冲突的终极方案 |
@@ -75,13 +67,13 @@ title: Compose与Flutter现代化声明式UI控件布局与优化全景指南
 
 ---
 
-> 本文系统性归纳整理 **Jetpack Compose (Android 原生声明式)** 与 **Flutter (跨平台声明式)** 的布局哲学、核心控件一一对照表、经典业务布局 MVP 模板、布局测量机制深度剖析及**工业级布局性能优化五大铁律**。无论是 Android 原生转型还是 Flutter 跨端进阶，读完本文均可建立系统性心智模型。
+> 本文系统性归纳整理 Jetpack Compose (Android 原生声明式) 与 Flutter (跨平台声明式) 的布局哲学、核心控件一一对照表、经典业务布局 MVP 模板、布局测量机制深度剖析及工业级布局性能优化五大铁律。无论是 Android 原生转型还是 Flutter 跨端进阶，读完本文均可建立系统性心智模型。
 
 ---
 
 ## 一、 声明式 UI 核心心智模型对比
 
-现代 UI 开发彻底摒弃了传统命令式（findViewById / 动态 addView / 手动 setVisibility）的思路，全面转向 **状态驱动 UI（State-driven UI）**：
+现代 UI 开发彻底摒弃了传统命令式（findViewById / 动态 addView / 手动 setVisibility）的思路，全面转向 状态驱动 UI（State-driven UI）：
 
 $$\text{UI} = f(\text{State})$$
 
@@ -110,7 +102,7 @@ graph LR
 | **视图构建形态** | 纯 Kotlin 函数（带 `@Composable` 编译期注解） | 类继承（`StatelessWidget` / `StatefulWidget`） |
 | **树结构设计** | 单一的 `LayoutNode` 语义树，配合编译期注入的 `Slot Table` 记录执行状态 | 经典三棵树：`Widget`（配置） $\to$ `Element`（关系） $\to$ `RenderObject`（渲染） |
 | **更新机制** | **重组（Recomposition）**：根据位掩码与 Slot Table 智能跳过无变化函数 | **重建（Rebuild）**：重新调用 `build()` 方法，Element 树对比更新 RenderObject |
-| **样式与行为修饰** | **链式 Modifier**（单向装饰流，顺序敏感） | **Widget 嵌套包裹**（如 `Padding`、`Container`、`DecoratedBox`） |
+| **样式与行为修饰** | 链式 Modifier（单向装饰流，顺序敏感） | Widget 嵌套包裹（如 `Padding`、`Container`、`DecoratedBox`） |
 
 ---
 
@@ -290,7 +282,7 @@ class ProductCard extends StatelessWidget {
 ### 1. Flutter 的“约束传递黄金法则”
 
 Flutter 官方有一句最著名的设计准则：
-> **Constraints go down. Sizes go up. Parent sets position.**  
+> Constraints go down. Sizes go up. Parent sets position.  
 > （约束向下传递，尺寸向上传递，父节点决定最终摆放位置。）
 
 ```mermaid
@@ -320,12 +312,12 @@ sequenceDiagram
 
 在传统 Android View 体系中，`RelativeLayout` 或包含权重的 `LinearLayout` 会触发多次测量（Multi-measure），导致树深度增加时出现 $O(2^n)$ 级测量性能灾难。
 
-Compose 在底层架构中**严禁子项多次测量**：
-- 每个 `LayoutNode` 在一轮布局中**只允许被 `measure()` 一次**。
-- 如果需要父组件根据所有子项的最宽/最高尺寸来对齐（例如两个按钮宽度强制相同），Compose 提供了 **固有特性测量（Intrinsics Measurement）**：在正式测量前先查询子项的最小/最大内在宽高（`IntrinsicSize.Min`），优雅避免重复递归测量。
+Compose 在底层架构中严禁子项多次测量：
+- 每个 `LayoutNode` 在一轮布局中只允许被 `measure()` 一次。
+- 如果需要父组件根据所有子项的最宽/最高尺寸来对齐（例如两个按钮宽度强制相同），Compose 提供了 固有特性测量（Intrinsics Measurement）：在正式测量前先查询子项的最小/最大内在宽高（`IntrinsicSize.Min`），优雅避免重复递归测量。
 
 > [!WARNING] Modifier 链式调用的“顺序陷阱”
-> Compose 的 Modifier 是由外向内包裹的链条，**调用顺序不同，最终效果天差地别**：
+> Compose 的 Modifier 是由外向内包裹的链条，调用顺序不同，最终效果天差地别：
 > ```kotlin
 > // 案例 1：先加内边距，再上背景色 -> 背景色会把 padding 区域一同填满
 > Modifier.padding(16.dp).background(Color.Red)
@@ -342,10 +334,10 @@ Compose 在底层架构中**严禁子项多次测量**：
 
 ## 五、 工业级布局性能优化五大铁律
 
-### 💎 Jetpack Compose 布局优化 5 大铁律
+### Jetpack Compose 布局优化 5 大铁律
 
 #### 1. 状态读取极致下沉（跳过 Composition 重组阶段）
-Compose 的执行分为三大阶段：**组合（Composition） $\to$ 布局（Layout） $\to$ 绘制（Draw）**。
+Compose 的执行分为三大阶段：组合（Composition） $\to$ 布局（Layout） $\to$ 绘制（Draw）。
 - **反例（严重卡顿）**：在 `@Composable` 函数顶层直接读取高频变化的滑动偏移 `scrollState.value`，导致整个组件每秒重组上百次：
   ```kotlin
   // 错误：触发全组件高频 Recomposition
@@ -394,11 +386,11 @@ Compose 的执行分为三大阶段：**组合（Composition） $\to$ 布局（L
 
 ---
 
-### 🚀 Flutter 布局优化 5 大铁律
+### Flutter 布局优化 5 大铁律
 
 #### 1. 善用 `const` 构造函数，榨干 Element 树复用红利
 - 在 Flutter 中，标记为 `const` 的 Widget 在编译期即生成常驻常量。
-- 当父级调用 `setState()` 触发重绘时，Element 树执行 Diff 时发现该 `const` 子组件引用完全一致，**直接整棵跳过其 `build()`，实现 0 CPU 开销的绝对优化**。
+- 当父级调用 `setState()` 触发重绘时，Element 树执行 Diff 时发现该 `const` 子组件引用完全一致，直接整棵跳过其 `build()`，实现 0 CPU 开销的绝对优化。
   ```dart
   // 正确：只要不依赖动态变量的静态修饰组件，全部加上 const
   const Padding(
@@ -408,7 +400,7 @@ Compose 的执行分为三大阶段：**组合（Composition） $\to$ 布局（L
   ```
 
 #### 2. 精准下沉状态更新范围，杜绝全屏大 `setState`
-- `setState` 的刷新范围是**当前 State 类的整个 `build()` 子树**。在最外层 Page 级别 `setState` 会导致整屏上百个组件重新 `build()`。
+- `setState` 的刷新范围是当前 State 类的整个 `build()` 子树。在最外层 Page 级别 `setState` 会导致整屏上百个组件重新 `build()`。
 - **解法**：
   - 将频繁变化的微小局部抽离为独立的 `StatefulWidget`。
   - 使用 `ValueListenableBuilder`、`Selector` (Provider) 或 `BlocBuilder` 做精细化局部响应。
@@ -429,7 +421,7 @@ Compose 的执行分为三大阶段：**组合（Composition） $\to$ 布局（L
 - `BackdropFilter`：高斯模糊毛玻璃，滑动列表内严禁大面积使用。
 
 #### 5. 长列表绝对禁止直接使用 `ListView(children: [...])`
-- `ListView(children: [...])` 会在初始化瞬间把里面所有子组件**一次性全部实例化加载**，列表条目超过几十条直接引发卡顿或内存 OOM。
+- `ListView(children: [...])` 会在初始化瞬间把里面所有子组件一次性全部实例化加载，列表条目超过几十条直接引发卡顿或内存 OOM。
 - 必须使用 `ListView.builder` 或 `CustomScrollView + SliverList`，实现只构建当前屏幕可见区域（Visible Area + `cacheExtent` 预加载区）的动态按需构建回收机制。
 
 ---

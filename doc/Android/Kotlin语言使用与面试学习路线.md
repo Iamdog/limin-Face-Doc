@@ -7,7 +7,7 @@ description: 从可空数据、业务模型、集合和 Java 混编开始，逐�
 
 ## 一、先明确 Kotlin 帮你解决什么问题
 
-Kotlin 用可空类型表达缺失数据，用属性、data class 和默认参数减少样板，用集合变换和高阶函数组织业务逻辑。协程库再帮助组织异步任务、取消和状态流。**语言基础、协程库、Android 生命周期是三层知识**：会 `viewModelScope.launch` 不等于已经掌握 Kotlin。
+Kotlin 用可空类型表达缺失数据，用属性、data class 和默认参数减少样板，用集合变换和高阶函数组织业务逻辑。协程库再帮助组织异步任务、取消和状态流。语言基础、协程库、Android 生命周期是三层知识：会 `viewModelScope.launch` 不等于已经掌握 Kotlin。
 
 本路线以 Kotlin/JVM 为主要环境，Android 场景单独注明。不会要求你先背 inline 字节码或 suspend 状态机；先能写、能解释输入输出、能处理错误，再深入实现。
 
@@ -54,6 +54,6 @@ Android 岗位在第 5 步后衔接 ViewModel、Room 和 Compose；Java 后端�
 
 ## 六、已执行的示例验证
 
-2026-11-12，使用 Kotlin 2.2.21、kotlinx-coroutines 1.10.2、JDK 21（JVM target 17），提取并编译运行了本组文档标记的 **37 个完整示例**，包括两组 Java/Kotlin 双向混编。结果断言覆盖空值、浅拷贝、集合重复键、Sequence 求值、扩展分派、泛型擦除、协程故障隔离/取消、Flow 重试/状态合并、无订阅事件丢失及回调注销。
+2026-11-12，使用 Kotlin 2.2.21、kotlinx-coroutines 1.10.2、JDK 21（JVM target 17），提取并编译运行了本组文档标记的 37 个完整示例，包括两组 Java/Kotlin 双向混编。结果断言覆盖空值、浅拷贝、集合重复键、Sequence 求值、扩展分派、泛型擦除、协程故障隔离/取消、Flow 重试/状态合并、无订阅事件丢失及回调注销。
 
 页面本地链接与导航检查、Vue 页面解析和 VitePress 生产构建通过。Android ViewModel/Fragment 片段明确标注依赖，尚未在实际 Android 工程编译或设备演练；KMP/Native 与目标 release 性能也不在此次 JVM 示例验证范围内。

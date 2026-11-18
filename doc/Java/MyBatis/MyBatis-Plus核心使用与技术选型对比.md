@@ -4,14 +4,6 @@ title: MyBatis-Plus核心使用与技术选型对比
 
 # MyBatis-Plus核心使用与技术选型对比
 
-## 使用入口：先解决问题，再做验证
-
-简化常见 CRUD 并保留复杂 SQL 能力。
-
-**先做基本操作**：先配置 Entity/Mapper 完成查询、更新与分页，验证逻辑删除和多租户条件，再分析增强实现。初次学习可先完成[本模块基础实践](/doc/Java/Java语言基础与日常开发)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 ## 基本使用指南与代码实战
 
 ### 1. 实体定义与常用注解规范
@@ -92,7 +84,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
 ### 3. 条件构造器实战（推荐使用 Lambda 表达式）
 
-MP 提供了 `QueryWrapper`、`UpdateWrapper` 以及对应的 `Lambda` 版本。**强烈推荐使用 Lambda 构造器**，能利用 Java 8 的方法引用（`User::getUserName`）保证列名的类型安全与重构安全。
+MP 提供了 `QueryWrapper`、`UpdateWrapper` 以及对应的 `Lambda` 版本。强烈推荐使用 Lambda 构造器，能利用 Java 8 的方法引用（`User::getUserName`）保证列名的类型安全与重构安全。
 
 ```java
 @Service
@@ -164,7 +156,7 @@ public class MybatisPlusConfig {
 }
 ```
 
-**物理分页调用示例：**
+物理分页调用示例：
 ```java
 // 分页查询第 1 页，每页 10 条
 Page<User> pageRequest = new Page<>(1, 10);
@@ -205,7 +197,7 @@ public class CustomMetaObjectHandler implements MetaObjectHandler {
 
 ---
 
-在现代 Java 后端研发中，单表基础 CRUD 和简单条件查询占据了业务开发的绝大部分工作量。**MyBatis-Plus（简称 MP）** 作为一个在 MyBatis 基础上的增强工具，坚持**“只做增强不做改变”**的核心设计，为简化开发、提高效率而生。
+在现代 Java 后端研发中，单表基础 CRUD 和简单条件查询占据了业务开发的绝大部分工作量。MyBatis-Plus（简称 MP） 作为一个在 MyBatis 基础上的增强工具，坚持“只做增强不做改变”的核心设计，为简化开发、提高效率而生。
 
 本文系统梳理 MyBatis-Plus 的核心用法、底层实现逻辑、生产级实用插件，并横向深度对比原生 MyBatis、Spring Data JPA、jOOQ 与 MyBatis-Flex，提供选型决策参考。
 
@@ -238,30 +230,30 @@ public class CustomMetaObjectHandler implements MetaObjectHandler {
 
 ### 2. 底层原理：如何实现“不写 XML 就拥有方法”？
 在 Spring 容器启动并加载 Mapper 接口时，MP 通过自定义的 `MybatisSqlSessionFactoryBean` 替换了原生的 `SqlSessionFactoryBean`，在其解析阶段介入：
-1. MP 的 **`ISqlInjector`（SQL 注入器）** 会扫描所有继承了 `BaseMapper<T>` 的接口；
+1. MP 的 `ISqlInjector`（SQL 注入器） 会扫描所有继承了 `BaseMapper<T>` 的接口；
 2. 提取泛型实体 `T` 上的注解（`@TableName`、`@TableId`、`@TableField`），自动推导出表名和列字段信息；
 3. 动态组装成对应的原生 `MappedStatement`（包含 `insert`、`deleteById`、`selectList` 等 17 个通用内置方法），并注册到 MyBatis 全局的 `Configuration` 对象中。
-4. **运行时阶段与原生 MyBatis 毫无区别**，没有反射性能损耗。
+4. 运行时阶段与原生 MyBatis 毫无区别，没有反射性能损耗。
 
 ---
 
 ## 三、 对比其他主流持久层框架
 
-Java 生态中有多种数据持久层解决方案。以下对比原生 **MyBatis**、**Spring Data JPA (Hibernate)**、**jOOQ** 与 **MyBatis-Flex**：
+Java 生态中有多种数据持久层解决方案。以下对比原生 MyBatis、Spring Data JPA (Hibernate)、jOOQ 与 MyBatis-Flex：
 
 | 对比维度 | MyBatis-Plus | 原生 MyBatis | Spring Data JPA (Hibernate) | jOOQ | MyBatis-Flex |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **设计定位** | MyBatis 增强工具，简化单表与常用操作 | SQL 映射框架，SQL 与代码完全解耦 | 全功能 ORM，推崇面向对象与领域模型 | 类型安全 SQL DSL 构建器 | 新一代轻量级 MyBatis 增强框架 |
-| **单表 CRUD 效率** | **极高**（内置大量方法，免写 SQL） | **较低**（需手写 XML 或配置 Generator 生成） | **高**（Repository 派生查询开箱即用） | **中等**（需代码生成器生成对应 Table 类） | **极高**（内置方法 + APT 编译期生成） |
-| **多表关联（Join）** | **较弱**（单表为主，多表仍需退回 XML） | **极强**（手写原生 SQL，自由度极高） | **中等**（通过实体关联注解映射，易引发 N+1 陷阱） | **极强**（与原生 SQL 1:1 对应的类型安全 DSL） | **强**（框架原生内置链式 Join DSL） |
-| **动态 SQL 支持** | **优秀**（Lambda 链式 API 极易编写） | **较繁琐**（需在 XML 中编写 `<if>`、`<choose>`） | **差**（Specification/Criteria 繁琐难懂） | **优秀**（纯 Java 代码动态拼装，类型安全） | **优秀**（基于 APT 生成的 QueryWrapper 体系） |
-| **性能透明度** | **高**（本质依然是原生预编译 SQL） | **最高**（完全掌控底层发出的每一条 SQL） | **较低**（复杂的脏检查机制与自动 flush 隐式行为） | **最高**（透明可控） | **高**（透明可控） |
-| **学习门槛** | **极低**（只要熟悉 MyBatis 几乎无心智负担） | **低至中**（需要熟悉 XML 映射语法） | **高**（级联加载、一级/二级缓存、懒加载等机制复杂） | **中高**（需要掌握特定 DSL 语法） | **低** |
-| **国内社区生态** | **极大**（国内大厂、中小企业、外包主流选型） | **极广** | 中等（在外企与 DDD 团队更普遍） | 较小（极客与金融复杂计算团队推崇） | 快速增长中（新生力量） |
+| **单表 CRUD 效率** | 极高（内置大量方法，免写 SQL） | 较低（需手写 XML 或配置 Generator 生成） | 高（Repository 派生查询开箱即用） | 中等（需代码生成器生成对应 Table 类） | 极高（内置方法 + APT 编译期生成） |
+| **多表关联（Join）** | 较弱（单表为主，多表仍需退回 XML） | 极强（手写原生 SQL，自由度极高） | 中等（通过实体关联注解映射，易引发 N+1 陷阱） | 极强（与原生 SQL 1:1 对应的类型安全 DSL） | 强（框架原生内置链式 Join DSL） |
+| **动态 SQL 支持** | 优秀（Lambda 链式 API 极易编写） | 较繁琐（需在 XML 中编写 `<if>`、`<choose>`） | 差（Specification/Criteria 繁琐难懂） | 优秀（纯 Java 代码动态拼装，类型安全） | 优秀（基于 APT 生成的 QueryWrapper 体系） |
+| **性能透明度** | 高（本质依然是原生预编译 SQL） | 最高（完全掌控底层发出的每一条 SQL） | 较低（复杂的脏检查机制与自动 flush 隐式行为） | 最高（透明可控） | 高（透明可控） |
+| **学习门槛** | 极低（只要熟悉 MyBatis 几乎无心智负担） | 低至中（需要熟悉 XML 映射语法） | 高（级联加载、一级/二级缓存、懒加载等机制复杂） | 中高（需要掌握特定 DSL 语法） | **低** |
+| **国内社区生态** | 极大（国内大厂、中小企业、外包主流选型） | **极广** | 中等（在外企与 DDD 团队更普遍） | 较小（极客与金融复杂计算团队推崇） | 快速增长中（新生力量） |
 
 ---
 
-## 四、 MyBatis-Plus 的优缺点深度剖析
+## 四、 MyBatis-Plus 的优缺点剖析
 
 ### 优势 (Pros)
 1. **单表效率碾压级提升**：告别海量枯燥的单表 XML 增删改查编写，大幅缩短业务原型迭代周期。
@@ -285,10 +277,10 @@ Java 生态中有多种数据持久层解决方案。以下对比原生 **MyBati
 ## 五、 生产开发最佳实践建议
 
 > [!IMPORTANT] 生产级开发军规
-> 1. **分层严格隔离**：严禁在 Controller 层直接实例化并拼接 `QueryWrapper`。所有数据组装必须收敛在 Service 或 Mapper 内部方法中。
-> 2. **优先使用 Lambda 构造器**：拒绝使用魔术字符串形式的 `new QueryWrapper<User>().eq("user_name", "xxx")`，全部统一为 `new LambdaQueryWrapper<User>().eq(User::getUserName, "xxx")`。
-> 3. **精准声明投影列**：查询长列表时，**坚决避免无脑 `SELECT *`**，务必显式声明 `.select(User::getId, User::getUserName)`，减轻数据库 I/O 与网络带宽开销。
-> 4. **多表关联果断退回手写 XML**：一旦涉及 2 表以上的大量字段 JOIN，立即在 Mapper 对应的 XML 中编写清晰的原生 SQL 与 `<resultMap>`，不要在 Java 中强行拼装脆弱的复杂条件。
+> 1. 分层严格隔离：严禁在 Controller 层直接实例化并拼接 `QueryWrapper`。所有数据组装必须收敛在 Service 或 Mapper 内部方法中。
+> 2. 优先使用 Lambda 构造器：拒绝使用魔术字符串形式的 `new QueryWrapper<User>().eq("user_name", "xxx")`，全部统一为 `new LambdaQueryWrapper<User>().eq(User::getUserName, "xxx")`。
+> 3. 精准声明投影列：查询长列表时，坚决避免无脑 `SELECT *`，务必显式声明 `.select(User::getId, User::getUserName)`，减轻数据库 I/O 与网络带宽开销。
+> 4. 多表关联果断退回手写 XML：一旦涉及 2 表以上的大量字段 JOIN，立即在 Mapper 对应的 XML 中编写清晰的原生 SQL 与 `<resultMap>`，不要在 Java 中强行拼装脆弱的复杂条件。
 
 ---
 

@@ -4,15 +4,7 @@ title: Flutter发包构建与调试命令全集
 
 # Flutter发包构建与调试命令全集
 
-## 使用入口：先解决问题，再做验证
-
-在目标平台运行、构建和发布可追溯产物。
-
-**先做基本操作**：先 flutter doctor、run 和 analyze，配置实际环境与签名，再验证 release 和版本信息。初次学习可先完成[本模块基础实践](/doc/flutter/Dart与Flutter页面基本使用)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
-在工业级移动端跨端开发中，除了编写 UI 页面，**环境诊断、运行调试、性能分析、打包签名以及多渠道构建（Flavor）** 是决定交付效率的核心工程能力。
+在工业级移动端跨端开发中，除了编写 UI 页面，环境诊断、运行调试、性能分析、打包签名以及多渠道构建（Flavor） 是决定交付效率的核心工程能力。
 
 ---
 
@@ -32,15 +24,15 @@ title: Flutter发包构建与调试命令全集
 ## 2. 运行与调试命令全集
 
 ### 运行模式选择
-- **Debug 模式**（支持 JIT 即时编译，支持热重载，性能低）：
+- Debug 模式（支持 JIT 即时编译，支持热重载，性能低）：
   ```bash
   flutter run
   ```
-- **Profile 模式**（开启 AOT 预编译，关闭调试断点，用于真实测量帧率、内存和 CPU 开销）：
+- Profile 模式（开启 AOT 预编译，关闭调试断点，用于真实测量帧率、内存和 CPU 开销）：
   ```bash
   flutter run --profile
   ```
-- **Release 模式**（生产最终形态，彻底剥离调试工具，性能最佳）：
+- Release 模式（生产最终形态，彻底剥离调试工具，性能最佳）：
   ```bash
   flutter run --release
   ```
@@ -60,10 +52,10 @@ flutter run -t lib/main_dev.dart
 ```
 
 ### 终端交互热键快捷键（在运行中的终端直接按键）
-- `r`：**Hot Reload（热重载）**，亚秒级刷新 UI，保持现有页面状态不变。
-- `R`：**Hot Restart（热重启）**，重置 App 状态，重新执行 `main()` 入口函数。
-- `p`：显示或隐藏**屏幕渲染网格线（Layout Guidelines）**，定位对齐与溢出问题。
-- `v`：直接在浏览器打开 **Flutter DevTools**（网络抓包、Widget Inspector 审查树、内存图谱）。
+- `r`：Hot Reload（热重载），亚秒级刷新 UI，保持现有页面状态不变。
+- `R`：Hot Restart（热重启），重置 App 状态，重新执行 `main()` 入口函数。
+- `p`：显示或隐藏屏幕渲染网格线（Layout Guidelines），定位对齐与溢出问题。
+- `v`：直接在浏览器打开 Flutter DevTools（网络抓包、Widget Inspector 审查树、内存图谱）。
 - `q`：优雅退出调试连接。
 
 ---

@@ -68,4 +68,4 @@ return result
 | Agent 比工作流多什么？ | 反复循环或工具失败怎么办？ | 状态机、停止条件、人工接管 |
 | 怎么判断效果变好？ | 模型升级后如何回归？ | 固定评测集、分层指标和灰度 |
 
-继续阅读 [RAG 与工作流技术栈](/doc/AI/大模型技术栈LangChain-LangGraph-LlamaIndex-Qdrant实战)。本栏目以应用工程为主，训练、反向传播、Transformer 数学和分布式训练需另设学习路线。
+继续阅读 [AI 模块文档意图识别与动态路由](/doc/AI/AI模块文档意图识别与动态路由) 与 [RAG 与工作流技术栈](/doc/AI/大模型技术栈LangChain-LangGraph-LlamaIndex-Qdrant实战)。本栏目以应用工程为主，训练、反向传播、Transformer 数学和分布式训练需另设学习路线。

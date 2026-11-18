@@ -4,14 +4,6 @@ title: TypeScript 工程实践与类型体操
 
 # TypeScript 工程实践与类型体操
 
-## 使用入口：先解决问题，再做验证
-
-在开发期发现数据形状与调用错误。
-
-**先做基本操作**：先启用 strict，为接口和组件声明类型，检查编译与外部输入运行时校验，再学泛型和 infer。初次学习可先完成[本模块基础实践](/doc/Vue/Vue组件与页面基本使用)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 ## 基本使用：类型系统的四块地基
 
 ```ts
@@ -156,7 +148,7 @@ export function useRequest<T>(url: MaybeRefOrGetter<string>) {
 const { data } = useRequest<User[]>('/api/users')   // data: ShallowRef<User[] | null>
 ```
 
-**工程配置要点**（`tsconfig.json`）：
+工程配置要点（`tsconfig.json`）：
 
 ```jsonc
 {

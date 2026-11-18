@@ -4,14 +4,6 @@ title: Redis 大Key 热Key 与集群治理实战
 
 # Redis 大 Key、热 Key 与集群治理实战
 
-## 使用入口：先解决问题，再做验证
-
-治理内存/带宽过大的键和访问过热的分片。
-
-**先做基本操作**：先观察 key 大小、访问热点、慢日志和分片负载，在隔离环境验证拆分与渐进删除，再分析槽位。初次学习可先完成[本模块基础实践](/doc/Java/Java语言基础与日常开发)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 > **一句话结论**：大 Key 是**单次操作 O(N) 卡住单线程事件循环**，热 Key 是**单分片被单点流量打爆**——前者解决「拆」，后者解决「散」，两者成因不同、解法不同，混着答基本就是没做过生产治理。
 
 ## 30 秒速览
@@ -40,9 +32,9 @@ flowchart TB
     end
 ```
 
-Redis 6 之后网络 IO 多线程，但**命令执行始终是单线程**，所以任何 O(N) 命令的影响都是全实例级别的。
+Redis 6 之后网络 IO 多线程，但命令执行始终是单线程，所以任何 O(N) 命令的影响都是全实例级别的。
 
-## 二、大 Key 治理：发现 → 评估 → 拆分 → 删除
+## 二、大 Key 治理：发现 评估 拆分 删除
 
 ```bash
 # ① 离线扫描（生产低峰执行，--bigkeys 内部走 SCAN，不阻塞太久）
@@ -65,7 +57,7 @@ UNLINK user:feed:1001
 | 删除 | 一律 `UNLINK` / `FLUSHALL ASYNC`，并开启 `lazyfree-lazy-eviction yes`、`lazyfree-lazy-expire yes`、`lazyfree-lazy-server-del yes`、`replica-lazy-flush yes` |
 | 预防 | 写入前校验元素数量与 value 大小；集合类设置上限并按时间归档；上线前用压测数据过一遍 |
 
-> 集群模式下大 Key 还有个隐藏伤害：**迁移 slot 时大 Key 无法拆分，导致扩容卡住甚至超时失败**，这是很多「扩容没效果」的根因。
+> 集群模式下大 Key 还有个隐藏伤害：迁移 slot 时大 Key 无法拆分，导致扩容卡住甚至超时失败，这是很多「扩容没效果」的根因。
 
 ## 三、热 Key 治理：本地缓存 + 打散
 
@@ -95,7 +87,7 @@ String key = "sku:10086#" + suffix;      // 16 份落在不同 slot，写时批�
 | 请求合并 / 单飞 singleflight | 缓存击穿瞬间 | 只解决回源风暴，不解决分片热点 |
 | 业务削峰（排队、答题、验证码） | 秒杀 | 产品层面改动，见 [秒杀全链路设计](/doc/SystemDesign/高并发秒杀系统全链路设计) |
 
-> 别和「缓存击穿」混淆：击穿是**一个 key 过期瞬间回源打数据库**，热 Key 是**这个 key 一直在、但访问量打爆单个 Redis 节点**。前者加互斥锁/逻辑过期（见 [Redis 高并发缓存与一致性实战](/doc/Java/Redis高并发缓存与一致性实战)），后者要散流量。
+> 别和「缓存击穿」混淆：击穿是一个 key 过期瞬间回源打数据库，热 Key 是这个 key 一直在、但访问量打爆单个 Redis 节点。前者加互斥锁/逻辑过期（见 [Redis 高并发缓存与一致性实战](/doc/Java/Redis高并发缓存与一致性实战)），后者要散流量。
 
 ## 四、Cluster 槽位与扩缩容
 
@@ -121,7 +113,7 @@ flowchart LR
 | 项 | 建议 |
 |---|---|
 | `maxmemory` | 物理内存的 60%~70%，给 fork（RDB/AOF 重写）留 COW 空间，否则容易 OOM |
-| 淘汰策略 | 纯缓存用 `allkeys-lru`/`allkeys-lfu`；带持久数据用 `volatile-ttl` 或 `noeviction` + 告警，**别让带业务语义的 key 被静默淘汰** |
+| 淘汰策略 | 纯缓存用 `allkeys-lru`/`allkeys-lfu`；带持久数据用 `volatile-ttl` 或 `noeviction` + 告警，别让带业务语义的 key 被静默淘汰 |
 | 内存碎片 | `INFO memory` 看 `mem_fragmentation_ratio` > 1.5 需关注，Redis 4+ 开 `activedefrag yes` |
 | 过期删除 | 定期抽样 + 惰性删除；大量 key 同时过期会造成「过期风暴」，过期时间加随机抖动 |
 | 危险命令 | `KEYS *`、`HGETALL`、`SMEMBERS`、`LRANGE 0 -1` 一律禁用或改 `SCAN`/`HSCAN`/分页；生产用 `rename-command` 屏蔽 |

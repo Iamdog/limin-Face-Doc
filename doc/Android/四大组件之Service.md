@@ -1,47 +1,27 @@
 # Service
 
-## 使用入口：先解决问题，再做验证
-
-执行满足平台规则的服务工作或提供绑定接口。
-
-**先做基本操作**：先区分 started/bound，完成注册、启动或绑定和停止，验证权限与后台限制再分析生命周期。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 ## 是什么？
 
 Service 是 Android 中一个重要的组件，主要用于在后台执行长时间运行的操作。它可以在没有用户界面的情况下运行，并且可以在应用程序被关闭后继续执行任务。Service 可以用于处理网络请求、播放音乐、执行定时任务等。
 
-
-
 ## 主要分类
 
-Service 的分类主要有两种维度：**运行地点**（是否可见）和**使用方式**（启动/绑定）。
-
-
+Service 的分类主要有两种维度：运行地点（是否可见）和使用方式（启动/绑定）。
 
 ### 1. 按运行地点/能见度分类
 
 | **类型**                   | **特点**                                                     | **场景举例**                   |
 | -------------------------- | ------------------------------------------------------------ | ------------------------------ |
-| **Foreground（前台服务）** | 必须在通知栏显示一个**不可移除**的通知。优先级最高，系统内存不足时最晚被回收。 | 音乐播放、导航、运动计步。     |
+| **Foreground（前台服务）** | 必须在通知栏显示一个不可移除的通知。优先级最高，系统内存不足时最晚被回收。 | 音乐播放、导航、运动计步。     |
 | **Background（后台服务）** | 用户无感知。在 Android 8.0 以后受到严格限制，应用处于后台时，系统随时可能杀死它。 | 数据同步（旧版）、日志上传。   |
 | **Bound（绑定服务）**      | 允许其他组件（如 Activity）与其交互（IPC）。只有当有组件绑定时才运行。 | 与 Activity 进行复杂数据交互。 |
-
-
-
-
 
 ### 2. 按使用方式分类（生命周期差异）
 
 - **Started Service (`startService`)**: 一旦启动，其生命周期与启动它的组件**无关**。必须手动调用 `stopSelf()` 或 `stopService()` 停止。
 - **Bound Service (`bindService`)**: 提供客户端-服务器接口。生命周期与绑定的组件**绑定**。当所有客户端取消绑定时，Service 自动销毁。
 
-
-
 ## 核心生命周期方法
-
-
 
 - `onCreate()`: 首次创建服务时调用。
 - `onStartCommand(Intent, int, int)`: 每次调用 `startService()` 都会触发。
@@ -53,11 +33,7 @@ Service 的分类主要有两种维度：**运行地点**（是否可见）和**
 - `onUnbind(Intent)`: 所有客户端断开连接时调用。
 - `onDestroy()`: 服务销毁前清理资源。
 
-
-
 ## Service如何保活
-
-
 
 *注意：在现代 Android 系统（12/13/14+）中，过度保活违反 Google Play 政策，且会被系统极力压制。*
 
@@ -66,23 +42,15 @@ Service 的分类主要有两种维度：**运行地点**（是否可见）和**
 3. **系统广播拉起**：监听 `BOOT_COMPLETED`（开机广播）等，但限制越来越多。
 4. **WorkManager**：虽然不是保活，但是它是目前官方推荐的、在系统约束下保证任务执行的最优方案。
 
-
-
 ## WorkManager
 
-
-
-随着 Android 对后台限制（Background Execution Limits）越来越严，普通的 Service 在应用切到后台后很快会被杀死。**WorkManager** 是官方用来取代大多数后台 Service 的方案。
-
-
+随着 Android 对后台限制（Background Execution Limits）越来越严，普通的 Service 在应用切到后台后很快会被杀死。WorkManager 是官方用来取代大多数后台 Service 的方案。
 
 #### 为什么它是 Service 的终结者？
 
 - **持久性**：即使 App 重启或手机开机，任务也能继续（存入 Room 数据库）。
 - **约束条件**：可以指定“仅在充电时”、“仅在有 WiFi 时”执行。
 - **兼容性**：根据系统版本自动切换 `JobScheduler`、`AlarmManager` 或 `Service`。
-
-
 
 #### 最小代码实践
 
@@ -109,15 +77,7 @@ OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(MyWorker.class)
 WorkManager.getInstance(context).enqueue(request);
 ```
 
-
-
-
-
-
-
 ## 核心要点深入
-
-
 
 ### Q1: Service 和 Thread 有什么区别？
 
@@ -129,7 +89,7 @@ WorkManager.getInstance(context).enqueue(request);
 
 ### Q2: 为什么有了 Service 还要有 IntentService？（或现在的 WorkManager）
 
-- **IntentService**（已弃用，但机制经典）：它是 Service 的子类，内置了 `HandlerThread`。它会自动开启子线程处理任务，且在任务完成后**自动停止**。
+- IntentService（已弃用，但机制经典）：它是 Service 的子类，内置了 `HandlerThread`。它会自动开启子线程处理任务，且在任务完成后自动停止。
 - **现代方案**：Android 8.0+ 推荐使用 `WorkManager`（处理持久性任务）或 `JobIntentService`。
 
 ### Q3: Activity 怎么和 Service 交互？
@@ -137,19 +97,11 @@ WorkManager.getInstance(context).enqueue(request);
 1. **Binder 机制**：最常用。通过 `onBind` 返回 Binder 对象，Activity 在 `ServiceConnection` 中获取该对象直接调用方法。
 2. **广播（Broadcast）**：Service 发送广播，Activity 注册接收器。
 3. **Messenger/AIDL**：用于跨进程通信（IPC）。
-4. **EventBus**
+4. EventBus
 
 ### Q4: 前台服务（Foreground Service）在 Android 14+ 的变化？
 
 - **类型声明**：必须在 Manifest 中声明 `android:foregroundServiceType`（如 `location`, `mediaPlayback`）。
 - **权限**：除了常规权限，还需申请对应的运行时权限。
 - **5秒限制**：调用 `startForegroundService` 后，必须在 5 秒内调用 `startForeground()` 弹出通知，否则系统抛出异常。
-
-
-
-
-
-
-
-
 

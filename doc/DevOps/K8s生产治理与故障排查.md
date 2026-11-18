@@ -4,14 +4,6 @@ title: K8s生产治理与故障排查
 
 # K8s 生产治理与故障排查
 
-## 使用入口：先解决问题，再做验证
-
-限制资源并恢复异常工作负载。
-
-**先做基本操作**：先用 describe、events 和 previous logs 分类 Pending/CrashLoop/OOM，验证修复，再讲调度与 QoS。初次学习可先完成[本模块基础实践](/doc/DevOps/部署运维基本使用与故障排查)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 > **一句话看懂**：线上事故 80% 落在「**资源、调度、权限、探针**」四件事上，排查有固定决策树——先看 Pod 状态和 Events，再看资源与调度，最后看网络与依赖，不要一上来就翻应用日志。
 
 ## 30 秒速览
@@ -42,13 +34,13 @@ flowchart TD
 | :--- | :--- | :--- |
 | `Guaranteed` | requests == limits（CPU 与内存都设且相等） | 最后被驱逐，适合数据库、核心服务 |
 | `Burstable` | 设了 requests，但 limits 更大或没设 limits | 中间 |
-| `BestEffort` | requests 和 limits 都没设 | **最先被杀**，生产禁止 |
+| `BestEffort` | requests 和 limits 都没设 | 最先被杀，生产禁止 |
 
 ### 两个常被混淆的机制
 
 | 维度 | CPU limits | Memory limits |
 | :--- | :--- | :--- |
-| 超限后果 | **节流（throttled）**，进程变慢但不会被杀 | **直接 OOMKilled**，容器被杀重启 |
+| 超限后果 | 节流（throttled），进程变慢但不会被杀 | 直接 OOMKilled，容器被杀重启 |
 | 线上表现 | RT 毛刺、偶发超时，很难查 | CrashLoopBackOff + `Exit Code 137` |
 | 生产建议 | 核心服务可不设 CPU limits，只设 requests（避免无谓节流） | 必须设，且要留足非堆内存余量 |
 
@@ -71,7 +63,7 @@ flowchart LR
 | :--- | :--- | :--- |
 | `nodeSelector` | Pod → Node 硬性匹配 | 只跑在 `ssd=true` 或 GPU 节点 |
 | `nodeAffinity` | 硬/软偏好，表达式更丰富 | `preferredDuringScheduling` 优先但不强制 |
-| `podAntiAffinity` | Pod ↔ Pod 排斥 | **同一服务的 3 个副本分散到不同节点**，防单点 |
+| `podAntiAffinity` | Pod ↔ Pod 排斥 | 同一服务的 3 个副本分散到不同节点，防单点 |
 | `Taints/Tolerations` | Node 主动排斥 Pod | 专用节点只给特定业务；`NoExecute` 会驱逐已有 Pod |
 | `topologySpreadConstraints` | 按 zone/host 打散 | 跨可用区容灾 |
 
@@ -127,8 +119,8 @@ spec:
         periodSeconds: 60
 ```
 
-- **扩缩抖动**是 HPA 最常见的生产问题：指标一抖就频繁增减 Pod。靠 `stabilizationWindowSeconds`（缩容冷静期）+ 扩容限速策略解决。
-- HPA 依赖 **metrics-server**；没装时 `kubectl get hpa` 的 TARGETS 会一直显示 `<unknown>`。
+- 扩缩抖动是 HPA 最常见的生产问题：指标一抖就频繁增减 Pod。靠 `stabilizationWindowSeconds`（缩容冷静期）+ 扩容限速策略解决。
+- HPA 依赖 metrics-server；没装时 `kubectl get hpa` 的 TARGETS 会一直显示 `<unknown>`。
 - 只设 requests 不设 limits 的服务，HPA 的 `averageUtilization` 以 requests 为分母计算，含义要搞清楚。
 
 ---
@@ -197,7 +189,7 @@ flowchart TD
 
 | 命令 | 用途 |
 | :--- | :--- |
-| `kubectl describe pod <p> -n <ns>` | **首选**，Events 里通常直接写了原因 |
+| `kubectl describe pod <p> -n <ns>` | 首选，Events 里通常直接写了原因 |
 | `kubectl logs <p> -c <container> --previous` | 看上一次崩溃前的日志 |
 | `kubectl get events -n <ns> --sort-by=.lastTimestamp` | 按时间看命名空间全局事件 |
 | `kubectl get endpoints <svc> -n <ns>` | 确认哪些 Pod 真的在接流量 |

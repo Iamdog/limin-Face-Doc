@@ -77,7 +77,7 @@ fun main() {
 }
 ```
 
-编译器根据**主构造中的属性**生成 equals/hashCode、toString、componentN、copy（具体生成规则还受已有实现影响）。主构造至少一个参数且都为 val/var；data class 不能同时是 abstract/open/sealed/inner。
+编译器根据主构造中的属性生成 equals/hashCode、toString、componentN、copy（具体生成规则还受已有实现影响）。主构造至少一个参数且都为 val/var；data class 不能同时是 abstract/open/sealed/inner。
 
 copy 不递归复制引用；数组作为属性也不会自动拥有你期望的内容 equals。参与 hashCode 的可变属性改变后，放入 HashSet/HashMap 的对象可能无法按原查找路径找到，应保持键稳定。
 

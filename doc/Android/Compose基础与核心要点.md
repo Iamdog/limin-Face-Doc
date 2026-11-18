@@ -4,14 +4,6 @@ title: Android Compose基础与核心要点
 
 # Android Compose基础与核心要点
 
-## 使用入口：先解决问题，再做验证
-
-用状态驱动界面与交互。
-
-**先做基本操作**：在 Composable 中用 remember 保存状态，点击后修改状态；需要跨重建保存时评估 rememberSaveable。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 Jetpack Compose 已经成为现代 Android 的核心方向。重点归纳：Compose 和 XML View 的区别、重组是什么、状态如何管理、为什么声明式 UI 更适合现代开发。
 
 ## 1. Compose 是什么？

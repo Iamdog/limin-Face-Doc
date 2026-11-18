@@ -4,6 +4,12 @@ description: 以任务管理接口为例，理解 Controller、Service、Mapper�
 ---
 
 # Spring Boot 业务开发实战入门
+> 阅读卡片
+> - 适合：已经会 Java 基础、想完成第一条 Spring Boot 业务接口的人。
+> - 前置：能读懂 Controller、Service、Mapper 和基本 SQL。
+> - 完成产出：一个带校验、事务、统一异常和多环境配置的 CRUD 模块。
+> - 验证方式：对照 [可运行练习项目](/examples/java-backend-workshop/README) 跑测试和 HTTP 请求。
+> - 下一步：[事务、权限与排错实战](/doc/Java/事务权限与排错实战)。
 
 本文以 Java 17+、Spring Boot 3.x、MyBatis、MySQL 为示例，目标是完成一组可维护的任务管理接口。重点是理解每一层的职责和请求如何流动，不要求一次掌握所有 Spring 注解。
 
@@ -374,7 +380,6 @@ spring:
 - 日志包含请求 ID、业务主键、耗时和错误原因。
 - 配置按环境隔离，密码和密钥没有进入代码仓库。
 - 至少有一组 Controller 测试和一组 Service 测试。
-
 
 ## CRUD 之后的验证
 

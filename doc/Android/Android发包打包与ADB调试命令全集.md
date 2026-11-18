@@ -4,15 +4,7 @@ title: Android发包打包、签名与ADB调试命令全集
 
 # Android 发包打包、签名与 ADB 调试命令全集
 
-## 使用入口：先解决问题，再做验证
-
-生成可安装的包并用设备日志定位问题。
-
-**先做基本操作**：先确认 SDK/签名/variant，构建安装测试包并读取 logcat，再按目标渠道验证 release。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
-Android 原生工程化开发与 CI/CD 自动化流水线中，**签名凭据管理、多渠道构建、APK 重命名、命令行打包与 ADB 诊断**是每个开发者必须打通的核心链路。
+Android 原生工程化开发与 CI/CD 自动化流水线中，签名凭据管理、多渠道构建、APK 重命名、命令行打包与 ADB 诊断是每个开发者必须打通的核心链路。
 
 ---
 
@@ -66,7 +58,7 @@ keytool -exportcert -keystore release.jks -alias my-app-alias -file public_cert.
 
 ### 4. 4字节对齐（zipalign）
 
-在对 APK 进行 v2/v3 签名之前，**必须先执行 4 字节对齐**，确保所有未压缩数据相对于文件开头的起始偏移量是 4 字节的整数倍，大幅提升运行时系统 `mmap` 读取内存性能。
+在对 APK 进行 v2/v3 签名之前，必须先执行 4 字节对齐，确保所有未压缩数据相对于文件开头的起始偏移量是 4 字节的整数倍，大幅提升运行时系统 `mmap` 读取内存性能。
 
 ```bash
 # 执行 4 字节对齐（zipalign 位于 Android SDK build-tools 目录下）
@@ -78,7 +70,7 @@ zipalign -c -v 4 app-aligned.apk
 
 ### 5. apksigner 官方签名与校验
 
-Google 从 Android 7.0 引入 `apksigner`，支持 v1、v2、v3、v4 签名全方案，**取代老旧的 jarsigner**：
+Google 从 Android 7.0 引入 `apksigner`，支持 v1、v2、v3、v4 签名全方案，取代老旧的 jarsigner：
 
 ```bash
 # 1. 对已对齐的 APK 执行签名
@@ -95,8 +87,8 @@ apksigner verify -v --print-certs app-release-signed.apk
 ```
 
 > [!WARNING] 避坑指南：执行顺序绝对不能错！
-> - **使用 apksigner（推荐）**：必须 **先 zipalign 对齐，后 apksigner 签名**。因为 v2 签名会对整个 ZIP 文件的字节块进行哈希校验，如果签完名再去 zipalign，会破坏签名块完整性导致校验失败！
-> - **使用老旧 jarsigner（淘汰）**：则是先 jarsigner 签名，再 zipalign 对齐（jarsigner 仅对文件项做签名，不校验 zip 整体）。
+> - 使用 apksigner（推荐）：必须 先 zipalign 对齐，后 apksigner 签名。因为 v2 签名会对整个 ZIP 文件的字节块进行哈希校验，如果签完名再去 zipalign，会破坏签名块完整性导致校验失败！
+> - 使用老旧 jarsigner（淘汰）：则是先 jarsigner 签名，再 zipalign 对齐（jarsigner 仅对文件项做签名，不校验 zip 整体）。
 
 ---
 
@@ -220,7 +212,7 @@ java -jar walle-cli-all.jar batch -c huawei,xiaomi,oppo,vivo app-release.apk out
 
 ## 四、 APK 产物自动化重命名（APK 自定义命名规范）
 
-自动化构建产出的安装包绝不能叫千篇一律的 `app-release.apk`。良好的命名规范包含：**应用名称、版本名称、版本号、打包时间、渠道名、编译类型**。
+自动化构建产出的安装包绝不能叫千篇一律的 `app-release.apk`。良好的命名规范包含：应用名称、版本名称、版本号、打包时间、渠道名、编译类型。
 
 ### 1. Groovy DSL 配置写法（`app/build.gradle`）
 
@@ -279,7 +271,7 @@ android {
 | 构建命令 | 适用场景与产物说明 |
 | :--- | :--- |
 | `./gradlew clean` | 清除构建缓存 `build/` 目录，杜绝增量编译引起的依赖与 Class 冲突 |
-| `./gradlew assembleRelease` | 编译**所有渠道**的正式签名版 APK |
+| `./gradlew assembleRelease` | 编译所有渠道的正式签名版 APK |
 | `./gradlew assembleOfficialRelease` | 仅编译指定渠道（如 `official` 官方渠道）的正式包，速度最快 |
 | `./gradlew bundleRelease` | 构建 Google Play 官方分发格式 AAB（`app-release.aab`） |
 | `./gradlew assembleDebug` | 构建本地调试包，不进行深度混淆优化 |
@@ -289,7 +281,7 @@ android {
 
 ## 六、 Android App Bundle (AAB / Bundle 包) 打包与 bundletool 工具实战
 
-从 2021 年 8 月起，Google Play 已强制所有新上架应用必须使用 **AAB（Android App Bundle）** 格式。国内出海项目或外销设备必备此技术。
+从 2021 年 8 月起，Google Play 已强制所有新上架应用必须使用 AAB（Android App Bundle） 格式。国内出海项目或外销设备必备此技术。
 
 ### 1. 命令行构建 AAB 包
 
@@ -307,7 +299,7 @@ android {
 ### 2. 本地测试与安装：bundletool 工具实战
 
 > [!CAUTION] 痛点说明
-> `.aab` 文件是代码与资源的发布归档文件，**不能直接通过 `adb install app.aab` 安装到手机上**。  
+> `.aab` 文件是代码与资源的发布归档文件，不能直接通过 `adb install app.aab` 安装到手机上。  
 > 本地开发调试与 QA 验收时，必须使用 Google 官方提供的 `bundletool.jar` 将 AAB 转换为安装包集合（`.apks`）。
 
 #### 步骤 1：从 AAB 生成全量机型 APKS 归档集
@@ -354,7 +346,7 @@ java -jar bundletool-all.jar get-size total \
 
 ## 七、 生产级 R8 / ProGuard 混淆保护配置
 
-代码混淆能够防止反编译偷取源码，同时缩减无用 Class 字节码。但混淆规则配置不当会导致**反射崩溃、JSON 解析字段为 null、JNI 调用失败**。
+代码混淆能够防止反编译偷取源码，同时缩减无用 Class 字节码。但混淆规则配置不当会导致反射崩溃、JSON 解析字段为 null、JNI 调用失败。
 
 ### `proguard-rules.pro` 核心实战模板
 ```properties

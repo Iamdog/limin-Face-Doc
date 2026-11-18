@@ -4,14 +4,6 @@ title: Dio网络请求与企业级封装详解
 
 # Dio网络请求与企业级封装详解
 
-## 使用入口：先解决问题，再做验证
-
-统一 Flutter 请求、鉴权、超时与取消。
-
-**先做基本操作**：先创建 Dio 完成一个 GET 并处理错误，测试取消和 401，再组织拦截器与刷新协调。初次学习可先完成[本模块基础实践](/doc/flutter/Dart与Flutter页面基本使用)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 ## 基础使用与核心 API 实战
 
 安装依赖（以 `dio: ^5.7.0` 为例）：
@@ -164,9 +156,9 @@ class SearchController {
 
 ---
 
-在 Flutter 跨平台开发中，网络请求是任何商业级 App 的核心命脉。虽然 Dart 官方提供了 `dart:io` 的 `HttpClient` 以及官方维护的 `package:http`，但 **Dio**（目前主流版本为 5.x）凭借其模块化设计、全功能拦截器链、可插拔网络适配器和丰富的高级特性，成为了 Flutter 生态中事实上的**网络层行业标准**。
+在 Flutter 跨平台开发中，网络请求是任何商业级 App 的核心命脉。虽然 Dart 官方提供了 `dart:io` 的 `HttpClient` 以及官方维护的 `package:http`，但 Dio（目前主流版本为 5.x）凭借其模块化设计、全功能拦截器链、可插拔网络适配器和丰富的高级特性，成为了 Flutter 生态中事实上的网络层行业标准。
 
-本文从 **底层架构原理**、**全场景 API 实战**、**企业级工业封装（含401无感刷新Token并发队列）**、**抓包与证书锁定** 到 **高频避坑与面试题** 进行全景深度剖析。
+本文从 底层架构原理、全场景 API 实战、企业级工业封装（含401无感刷新Token并发队列）、抓包与证书锁定 到 高频避坑与面试题 进行全景深度剖析。
 
 ---
 
@@ -177,10 +169,10 @@ class SearchController {
 | 核心维度 | 官方 `dart:io` HttpClient | 官方 `http` 包 | Dio (5.x) |
 | :--- | :--- | :--- | :--- |
 | **易用性与抽象度** | 低级 API，需手动读写 Stream、组装 Byte | 简单封装，轻量，适合小型 CLI 工具 | 高级全功能 API，开箱即用 |
-| **拦截器 (Interceptors)**| ❌ 无原生支持，需自行包装包装器 | ❌ 仅支持基础的 Client 包装 | ✅ 强大三向拦截器 (`onRequest`、`onResponse`、`onError`) |
-| **请求取消机制** | ❌ 难以优雅取消 | ❌ 无法中断进行中的连接 | ✅ 支持 `CancelToken` 颗粒度取消与批量取消 |
-| **文件流上传与下载** | 繁琐，需手动组装 Multipart 字节流 | 仅支持基础 MultipartRequest | ✅ 原生 `FormData`、`MultipartFile`，内置断点/进度监听 |
-| **底层适配层解耦** | 绑定 dart:io（Web 端不可用） | 平台分支实现 | ✅ `HttpClientAdapter`，跨平台无缝支持（IO/Web/Cronet/Http2） |
+| **拦截器 (Interceptors)**| 无原生支持，需自行包装包装器 | 仅支持基础的 Client 包装 | 强大三向拦截器 (`onRequest`、`onResponse`、`onError`) |
+| **请求取消机制** | 难以优雅取消 | 无法中断进行中的连接 | 支持 `CancelToken` 颗粒度取消与批量取消 |
+| **文件流上传与下载** | 繁琐，需手动组装 Multipart 字节流 | 仅支持基础 MultipartRequest | 原生 `FormData`、`MultipartFile`，内置断点/进度监听 |
+| **底层适配层解耦** | 绑定 dart:io（Web 端不可用） | 平台分支实现 | `HttpClientAdapter`，跨平台无缝支持（IO/Web/Cronet/Http2） |
 
 ---
 
@@ -208,7 +200,7 @@ flowchart TD
 
 ## 三、 企业级生产封装架构实战
 
-在真实商业化工程中，零散调用 `dio.get` 是极度不可取的。我们需要构建一套具备 **单例生命周期**、**统一业务响应包装**、**401 无感刷新 Token 重试队列**、**网络异常分类映射** 的健壮网络层。
+在真实商业化工程中，零散调用 `dio.get` 是极度不可取的。我们需要构建一套具备 单例生命周期、统一业务响应包装、401 无感刷新 Token 重试队列、网络异常分类映射 的健壮网络层。
 
 ### 1. 统一接口业务实体封装 `ApiResponse<T>`
 
@@ -250,7 +242,7 @@ class ApiResponse<T> {
 
 > [!IMPORTANT]
 > **生产核心考点**：当 Access Token 过期时，若当前界面同时并发了 5 个接口，这 5 个接口都会收到 401 响应。若不做防重并发控制，就会同时向鉴权服务发出 5 次 Refresh Token 请求，导致 Token 紊乱并被服务器安全风控机制拉黑。  
-> 必须使用 **队列暂存 + 并发锁 (Lock / Completer)** 机制，保证仅发起 1 次刷新请求，其余请求挂起排队，待新 Token 就绪后自动带上新 Token 重发。
+> 必须使用 队列暂存 + 并发锁 (Lock / Completer) 机制，保证仅发起 1 次刷新请求，其余请求挂起排队，待新 Token 就绪后自动带上新 Token 重发。
 
 ```dart
 // lib/core/network/auth_interceptor.dart
@@ -599,9 +591,9 @@ void setupSslPinning(Dio dio, String expectedFingerprint) {
 ## 五、 高频大坑总结与经典面试题
 
 ### 1. Dio 4 到 Dio 5 的重大 Breaking Changes
-- `DioError` 被全面重命名为 **`DioException`**。
-- `DioErrorType` 改为 **`DioExceptionType`**。
-- 超时时间从 `int` 毫秒（`connectTimeout = 5000`）改为了 **`Duration`**（`connectTimeout = const Duration(seconds: 5)`）。
+- `DioError` 被全面重命名为 `DioException`。
+- `DioErrorType` 改为 `DioExceptionType`。
+- 超时时间从 `int` 毫秒（`connectTimeout = 5000`）改为了 `Duration`（`connectTimeout = const Duration(seconds: 5)`）。
 - 原生适配层从 `DefaultHttpClientAdapter` 拆分为 `IOHttpClientAdapter`（面向非 Web 端）和 `BrowserHttpClientAdapter`。
 
 ### 2. 面试高频题：为什么上传文件不能手动设置 Content-Type？

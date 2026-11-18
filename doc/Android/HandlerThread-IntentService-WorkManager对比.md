@@ -4,14 +4,6 @@ title: Android HandlerThread-IntentService-WorkManager对比
 
 # Android HandlerThread / IntentService / WorkManager 对比
 
-## 使用入口：先解决问题，再做验证
-
-选择正确的异步工作方式，匹配串行执行、持久任务和生命周期要求。
-
-**先做基本操作**：先做一个可取消后台任务，分别验证页面退出和进程重建需求，再决定是否使用 WorkManager。完整前置实践见[基础入口](/doc/Android/Android应用基本开发与验证)。
-
-**再逐步深入**：用途与基本 API → 场景与失败 → 原理/源码 → 取舍与验证。
-
 这三个方案都能做后台任务，但定位完全不同。核心关键是掌握“任务时效性、生命周期、可靠性、系统约束”。
 
 ## 1. HandlerThread

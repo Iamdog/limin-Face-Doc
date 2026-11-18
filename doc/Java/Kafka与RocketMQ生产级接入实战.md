@@ -3,6 +3,12 @@ title: Kafka与RocketMQ生产级接入实战
 ---
 
 # Kafka 与 RocketMQ 生产级接入实战
+> 阅读卡片
+> - 适合：需要异步解耦、削峰或可靠投递的业务开发者。
+> - 前置：理解幂等、事务边界、重试和补偿；先读 [消息高可靠投递](/doc/Java/消息中间件选型与高可靠投递全解)。
+> - 完成产出：生产者确认、消费者提交、消费幂等、重试、死信和积压处理方案。
+> - 验证方式：至少演练一次重复消费、消费失败和消息积压，并保留指标或日志证据。
+> - 下一步：需要延迟关单或定时补偿时读 [MQ 与延迟任务](/doc/Java/MQ消息队列与延迟任务实战)。
 
 ## 先理解：消息队列解决什么问题
 
@@ -69,14 +75,14 @@ title: Kafka与RocketMQ生产级接入实战
 | 消费进度 | 消费者把 offset 提交到 Kafka 的内部 topic | Broker 保存消费进度，消费者上报当前进度 |
 | 失败重试 | 通过业务代码或 Spring 的错误处理器重新投递 | Broker 提供重试队列和死信队列 |
 | 顺序消息 | 同一 partition 内有序（按 key 哈希分区） | 同一 MessageQueue 内有序（`MessageQueueSelector` 指定） |
-| 事务消息 | 幂等生产者 + 事务 API（跨分区能力有限） | 原生 **half message + 回查** |
+| 事务消息 | 幂等生产者 + 事务 API（跨分区能力有限） | 原生 half message + 回查 |
 | 延迟消息 | 无原生 | 4.x 18 个等级；5.x 支持任意时间 |
 | 消费模型 | 消费者主动拉取，消费组负责分配分区 | 客户端通过长轮询获取消息，可使用集群或广播消费 |
 
-**只需要记住两句话：**
+只需要记住两句话：
 
-- Kafka 的并行单位是 **Partition**，消费组负责分配 Partition。
-- RocketMQ 的并行单位是 **MessageQueue**，消费组负责分配 MessageQueue。
+- Kafka 的并行单位是 Partition，消费组负责分配 Partition。
+- RocketMQ 的并行单位是 MessageQueue，消费组负责分配 MessageQueue。
 
 ## 一、Kafka：先掌握 Topic、Partition 和 Consumer Group
 
@@ -116,7 +122,7 @@ flowchart LR
 | Rebalance | 消费者数量或订阅发生变化时，重新分配 Partition |
 | `max.poll.interval.ms` | 两次拉取消息之间允许的最大间隔，处理时间过长会触发 Rebalance |
 
-**本节只记：** Partition 决定并行度，offset 决定消费进度，Consumer Group 决定谁来处理消息。消费者数量超过 Partition 数量时，多出的消费者不会获得消息。
+本节只记： Partition 决定并行度，offset 决定消费进度，Consumer Group 决定谁来处理消息。消费者数量超过 Partition 数量时，多出的消费者不会获得消息。
 
 ### 3. 生产者：如何可靠发送消息
 
@@ -160,7 +166,7 @@ try (KafkaProducer<String, String> producer = new KafkaProducer<>(props)) {
 
 ### 4. 消费者：业务成功后再提交 offset
 
-消费者的核心规则只有一条：**业务处理成功后，才提交 offset**。如果业务处理失败，应重试或进入死信流程；不能在处理前提交，否则进程崩溃后消息可能无法再次消费。
+消费者的核心规则只有一条：业务处理成功后，才提交 offset。如果业务处理失败，应重试或进入死信流程；不能在处理前提交，否则进程崩溃后消息可能无法再次消费。
 
 ```yaml
 spring:
@@ -196,12 +202,12 @@ public void onMessage(ConsumerRecord<String, String> record, Acknowledgment ack)
 }
 ```
 
-**三种 ack-mode 的差别**（常见配置问题）：
+三种 ack-mode 的差别（常见配置问题）：
 
 | 模式 | 行为 | 后果 |
 |---|---|---|
 | `RECORD` | 每条处理完提交 | 最安全，性能稍差 |
-| `BATCH`（默认） | 一批 poll 的记录处理完一起提交 | 这批中间失败，重启后**整批重放** |
+| `BATCH`（默认） | 一批 poll 的记录处理完一起提交 | 这批中间失败，重启后整批重放 |
 | `MANUAL` / `MANUAL_IMMEDIATE` | 必须手动 `acknowledge()` | 不调就永不提交，重启重复消费 |
 | `TIME` | 按时间提交 | 与处理进度无关，最危险 |
 
@@ -225,7 +231,7 @@ sequenceDiagram
 **四个缓解手段**：
 1. 用 `CooperativeStickyAssignor`（增量式 rebalance，只迁移必要分区，不全量 STW）。
 2. `max.poll.records` 调小 + `max.poll.interval.ms` 调大，让单批处理时间可控。
-3. 消费逻辑异步化：poll 到的消息丢给业务线程池，但**位点提交必须等业务完成**（用 `pause/resume` 或手动管理）。
+3. 消费逻辑异步化：poll 到的消息丢给业务线程池，但位点提交必须等业务完成（用 `pause/resume` 或手动管理）。
 4. 静态成员 `group.instance.id`，滚动发布时不触发 rebalance。
 
 ### 6. 顺序消息
@@ -258,12 +264,12 @@ flowchart LR
 | 概念 | 说明 |
 |---|---|
 | NameServer | 路由注册中心，Broker 定期上报 Topic 路由；节点之间不共享状态，可按可用性需求部署多个 |
-| CommitLog | 所有 Topic 消息**混写**在一个文件里，顺序写盘；单文件默认 1GB |
+| CommitLog | 所有 Topic 消息混写在一个文件里，顺序写盘；单文件默认 1GB |
 | ConsumeQueue | 每个 Topic+Queue 一个索引文件，存「CommitLog 物理偏移 + 大小 + tag hash」，消费走索引再随机读 CommitLog |
 | MessageQueue | 类似 Kafka 的 partition，是并行与顺序单位 |
 | 位点 | 存在 Broker 的 `ConsumerOffset.json`（4.x）或 `consumequeue` 的 `.offset`，客户端只上报 |
 
-**本节只记：** NameServer 提供路由，Broker 保存消息，MessageQueue 决定并行和顺序。生产者发送消息，消费者处理消息并上报消费进度。
+本节只记： NameServer 提供路由，Broker 保存消息，MessageQueue 决定并行和顺序。生产者发送消息，消费者处理消息并上报消费进度。
 
 ### 2. 普通、顺序、单向和延迟消息
 
@@ -369,8 +375,8 @@ consumer.start();
 
 | 行为 | 机制 | 关键点 |
 |---|---|---|
-| 失败重试 | 进 `%RETRY%order-consumer`，退避间隔 `10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h`，共 16 次 | 重试消息 **topic 变了但 MessageQueue 不变**，仍是同一队列 |
-| 死信队列 | 超过最大重试次数进 `%DLQ%order-consumer`，**不再自动消费** | 必须做监控 + 人工/定时补偿，否则消息静默消失 |
+| 失败重试 | 进 `%RETRY%order-consumer`，退避间隔 `10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h`，共 16 次 | 重试消息 topic 变了但 MessageQueue 不变，仍是同一队列 |
+| 死信队列 | 超过最大重试次数进 `%DLQ%order-consumer`，不再自动消费 | 必须做监控 + 人工/定时补偿，否则消息静默消失 |
 | 顺序消费 | `MessageListenerOrderly` + `ConsumeMessageBatchMaxSize=1` | 队列级锁，一个队列同时只有一个线程消费；消费阻塞会卡住整个队列 |
 | 集群消费 | 同组内分摊队列 | 扩缩容触发 rebalance（Broker 侧分配） |
 | 广播消费 | 每个实例都消费全量 | 位点存本地，重启重复消费 |
@@ -441,7 +447,7 @@ public class OrderConsumer implements RocketMQListener<Order> {
 }
 ```
 
-**RocketMQ Starter 注意事项：**
+RocketMQ Starter 注意事项：
 
 1. `consumerGroup` 表示消费者身份。同一个业务组不要让多个无关类共用，否则会产生消费关系冲突。
 2. 使用 JSON 消息时，生产者和消费者的字段名称、类型和序列化方式必须一致。
@@ -463,12 +469,12 @@ public class OrderConsumer implements RocketMQListener<Order> {
 # 看消费组堆积（最关键的两个指标：LAG 与 消费速率）
 kafka-consumer-groups.sh --bootstrap-server kafka1:9092 \
   --describe --group order-consumer
-#   TOPIC  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG
+# TOPIC  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG
 
 # 看 topic 详情与分区
 kafka-topics.sh --bootstrap-server kafka1:9092 --describe --topic order-topic
 
-# 扩分区（会打破 key→分区映射，慎用！）
+# 扩分区（会打破 key分区映射，慎用！）
 kafka-topics.sh --bootstrap-server kafka1:9092 --alter --topic order-topic --partitions 12
 
 # 重置位点（危险：--execute 前先 --dry-run 看计划）
@@ -503,7 +509,7 @@ flowchart TD
     D --> G["仍未恢复：临时扩容分区 + 消费者<br/>或降级丢弃非核心消息"]
 ```
 
-**排查时必须记住三点：**
+排查时必须记住三点：
 
 1. 消费者数量超过 Partition 或 MessageQueue 数量时，多出的实例不会提高吞吐。
 2. Kafka 扩大 Partition 数量可能改变 key 到 Partition 的映射，顺序业务必须提前评估。

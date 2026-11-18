@@ -127,7 +127,7 @@ suspend fun stillBlocks() { Thread.sleep(100) }
 
 ### CPS 与状态机在使用之后理解
 
-Kotlin/JVM 中 `suspend fun fetch(id: Long): User` 可用以下**签名示意**理解：
+Kotlin/JVM 中 `suspend fun fetch(id: Long): User` 可用以下签名示意理解：
 
 ```java
 // 机制示意，User 代表业务类型；不是手写替代 suspend 的完整实现

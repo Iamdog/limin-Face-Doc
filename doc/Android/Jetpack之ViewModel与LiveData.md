@@ -4,14 +4,6 @@ title: Android Jetpack之ViewModel与LiveData
 
 # Android Jetpack之ViewModel与LiveData
 
-## 使用入口：先解决问题，再做验证
-
-把页面状态从 Activity/Fragment 中分离并管理观察生命周期。
-
-**先做基本操作**：先在 ViewModel 加载数据，页面观察并显示 loading/error，验证旋转与销毁，再讨论状态恢复和内部机制。完整前置实践见[基础入口](/doc/Android/Android应用基本开发与验证)。
-
-**再逐步深入**：用途与基本 API → 场景与失败 → 原理/源码 → 取舍与验证。
-
 `ViewModel` 和 `LiveData` 是 Android Jetpack 中最常见的一组组件，核心价值是把页面状态和生命周期解耦，避免 Activity/Fragment 过度臃肿。
 
 ## 1. ViewModel 是什么？

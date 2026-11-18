@@ -4,14 +4,6 @@ title: K8s工作负载与发布策略实战
 
 # K8s 工作负载与发布策略实战
 
-## 使用入口：先解决问题，再做验证
-
-选择控制器并安全发布新版本。
-
-**先做基本操作**：先部署一个无状态服务并观察 rollout，验证探针、失败和回滚，再比较控制器与更新策略。初次学习可先完成[本模块基础实践](/doc/DevOps/部署运维基本使用与故障排查)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 > **一句话看懂**：Deployment 管无状态、StatefulSet 管有状态；发布不是「停服重启」，而是**新旧两套 ReplicaSet 交替扩缩 + 探针做流量门禁**，有助于保持服务，但还依赖容量、优雅终止、流量排空和版本兼容。
 
 ## 30 秒速览
@@ -46,7 +38,7 @@ flowchart TD
 | `DaemonSet` | 每节点一个 | 通常 hostPath | 随节点增减 | 节点下线即移除 |
 | `Job` | 一次性 | 可选 | 按 `parallelism` | 完成后 Pod 保留供查日志 |
 
-- **StatefulSet 必须配 Headless Service**（`clusterIP: None`），才能让 `mysql-0.mysql-svc` 这样的 DNS 稳定解析到固定 Pod。
+- StatefulSet 必须配 Headless Service（`clusterIP: None`），才能让 `mysql-0.mysql-svc` 这样的 DNS 稳定解析到固定 Pod。
 - PVC 的生命周期独立于 Pod：`kubectl delete pod` 不会丢数据，`kubectl delete pvc` 才会（还取决于回收策略）。
 
 ---
@@ -78,9 +70,9 @@ flowchart LR
 | `maxSurge: 1, maxUnavailable: 0` | 3 → 4 → 3 | 需多 1 个 Pod 的余量 | 常见配置；仍需额外容量与终止保护 |
 | `maxSurge: 0, maxUnavailable: 1` | 3 → 2 → 3 | 无额外资源 | 资源紧张、允许短暂少一个副本 |
 | `maxSurge: 25%, maxUnavailable: 25%` | 弹性 | 中等 | 副本数多、追求速度 |
-| `Recreate`（全删再起） | 3 → **0** → 3 | 最低 | 仅允许停机的离线系统，新旧版本不兼容时用 |
+| `Recreate`（全删再起） | 3 → 0 → 3 | 最低 | 仅允许停机的离线系统，新旧版本不兼容时用 |
 
-> 二者**不能同时为 0**，否则既不能多起也不能少一个，更新会直接卡死。
+> 二者不能同时为 0，否则既不能多起也不能少一个，更新会直接卡死。
 
 ### 发布与回滚命令
 
@@ -116,10 +108,10 @@ sequenceDiagram
 | 探针 | 问的问题 | 失败动作 | 必须避免的错配 |
 | :--- | :--- | :--- | :--- |
 | `startupProbe` | 启动完了吗 | 阻止另两探针 | 不配 → 慢启动应用被 liveness 反复杀，陷入 CrashLoop |
-| `readinessProbe` | 能接客吗 | 摘出 Endpoints（**不重启**） | 探针里查 DB/下游，依赖一抖全副本被摘，服务整体 404 |
+| `readinessProbe` | 能接客吗 | 摘出 Endpoints（不重启） | 探针里查 DB/下游，依赖一抖全副本被摘，服务整体 404 |
 | `livenessProbe` | 还活着吗 | 杀容器重启 | 检查了外部依赖 → 下游故障引发本服务无意义重启风暴 |
 
-**探针就该只检查自己进程是否健康**，用 `/actuator/health/liveness` 这类不含外部依赖的端点（Spring Boot 的 liveness/readiness 探针组天然做了这个隔离）。
+探针就该只检查自己进程是否健康，用 `/actuator/health/liveness` 这类不含外部依赖的端点（Spring Boot 的 liveness/readiness 探针组天然做了这个隔离）。
 
 ### 完整加固版 Deployment
 

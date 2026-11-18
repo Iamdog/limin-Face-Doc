@@ -1,20 +1,12 @@
 ---
-title: Android 16KB 页面大小兼容影响与治理全解
+title: Android 16KB 页面大小兼容影响与治理
 ---
 
-# Android 16KB 页面大小兼容影响与治理全解
-
-## 使用入口：先解决问题，再做验证
-
-让含 Native 库的应用在目标页面大小设备上正常安装与运行。
-
-**先做基本操作**：先盘点所有直接和传递依赖的 so，检查 ELF 与打包对齐，在实际 16KB 环境验证再排查加载机制。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
+# # Android 16KB 页面大小兼容影响与治理
 
 > **一句话结论**：这不是「性能优化选择题」，而是**上架硬门槛**。只要你的 APK / AAB 里含 64 位 `.so`（自己写的，或第三方 SDK 悄悄带进来的），就必须同时满足 **ELF 段 16KB 对齐（编译期）** 与 **ZIP 条目 16KB 对齐（打包期）**，否则轻则在 16KB 设备上 `dlopen` 直接失败、重则 Google Play 拒绝更新。最短路径：**AGP 8.5.1+ → NDK r28+ → 换掉不兼容 SDK → 在 16KB 环境跑一遍全链路回归**。
 
-> 本文事实核对时间：**2026-11-10**。政策日期调整过多次，最终以你自己 Play Console 里「政策状态 / App bundle explorer」显示的期限为准。
+> 本文事实核对时间：2026-11-10。政策日期调整过多次，最终以你自己 Play Console 里「政策状态 / App bundle explorer」显示的期限为准。
 
 ---
 
@@ -26,7 +18,7 @@ title: Android 16KB 页面大小兼容影响与治理全解
 | **谁天然合规**：全部代码与全部 SDK 都是 Java/Kotlin、包里无 `.so` | 仍建议做一次 16KB 回归，防止依赖升级后引入 `.so` |
 | **要过几道关**：**两道且互相独立** —— ELF 段对齐、ZIP 条目对齐 | 只查 `zipalign` 就以为完事，结果 ELF 段仍是 4KB |
 | **最短修复**：`AGP 8.5.1+` + `NDK r28+` + 16KB 兼容的预编译依赖 | 以为「升 targetSdk」能解决（完全无关） |
-| **编译期要求**：每个 `PT_LOAD` 的 `p_align >= 2**14`（16384） | 网上说「NDK r27 默认支持」是错的，**官方是 r28+** |
+| **编译期要求**：每个 `PT_LOAD` 的 `p_align >= 2**14`（16384） | 网上说「NDK r27 默认支持」是错的，官方是 r28+ |
 | **打包期要求**：未压缩 `.so` 在 ZIP 里的起始偏移为 16384 的倍数 | AGP 8.3~8.5 看似对齐，Play 用 AAB 重打的 APK 却装不上 |
 | **代码层要求**：去掉 `PAGE_SIZE` / `4096` 硬编码，改 `sysconf(_SC_PAGESIZE)` | 静态检查全过，运行时 `mmap` 仍按 4KB 算，逻辑错或内存暴涨 |
 | **验收标准**：`zipalign -c -P 16 -v 4` 输出 `Verification successful`，且 `adb shell getconf PAGE_SIZE` 返回 `16384` 后回归通过 | 只在 4KB 手机上测，上线才炸 |
@@ -60,23 +52,23 @@ flowchart TD
 
 ### 2.1 底层动机
 
-页（page）是操作系统管理内存的最小粒度，Android 历史上一直按 **4KB** 设计。随着设备 RAM 越来越大，页表项数量与 TLB miss 成为瓶颈；ARM64 原生支持 16KB 页，用更少、更大的页能降低内存管理开销。
+页（page）是操作系统管理内存的最小粒度，Android 历史上一直按 4KB 设计。随着设备 RAM 越来越大，页表项数量与 TLB miss 成为瓶颈；ARM64 原生支持 16KB 页，用更少、更大的页能降低内存管理开销。
 
-从 **Android 15（API 35）** 起 AOSP 变成 page-size-agnostic，厂商可以选用 16KB 内核。Google 官方测得的收益：
+从 Android 15（API 35） 起 AOSP 变成 page-size-agnostic，厂商可以选用 16KB 内核。Google 官方测得的收益：
 
 | 指标 | 16KB 设备上的变化 |
 |---|---|
-| 内存压力下应用启动 | 平均快 **3.16%**，部分应用最高 **30%** |
-| 应用启动功耗 | 平均降低 **4.56%** |
-| 相机热启动 / 冷启动 | 平均快 **4.48% / 6.60%** |
-| 系统启动 | 平均快 **8%**（约 **950ms**） |
-| 代价 | 平均内存占用**略增**（更早的官方博客给过 ~9% 额外内存 / 5-10% 整体性能提升的口径） |
+| 内存压力下应用启动 | 平均快 3.16%，部分应用最高 30% |
+| 应用启动功耗 | 平均降低 4.56% |
+| 相机热启动 / 冷启动 | 平均快 4.48% / 6.60% |
+| 系统启动 | 平均快 8%（约 950ms） |
+| 代价 | 平均内存占用略增（更早的官方博客给过 ~9% 额外内存 / 5-10% 整体性能提升的口径） |
 
-同一个适配后的二进制可**同时运行在 4KB 与 16KB 设备**上，不需要分包——这是好消息。
+同一个适配后的二进制可同时运行在 4KB 与 16KB 设备上，不需要分包——这是好消息。
 
 ### 2.2 关键机制：为什么 4KB 的 `.so` 会直接加载失败
 
-现代构建默认 `extractNativeLibs=false`，`.so` **不解压到磁盘**，动态链接器直接从 APK 里 `mmap` 映射。于是产生两条互相独立的对齐要求：
+现代构建默认 `extractNativeLibs=false`，`.so` 不解压到磁盘，动态链接器直接从 APK 里 `mmap` 映射。于是产生两条互相独立的对齐要求：
 
 ```mermaid
 flowchart TD
@@ -109,10 +101,10 @@ flowchart TD
 | 时间 | 事件 | 对开发者的意义 |
 |---|---|---|
 | Android 15（API 35） | AOSP 开始支持 16KB 页设备 | 系统能力起点；不重编的 native 应用在这些设备上跑不起来 |
-| 2025-05 官方公告 | 宣布 **2025-11-01** 起提交 Play、targeting Android 15+ 的新应用与更新须支持 16KB；后续博客收窄表述为「使用 native C/C++ 代码的应用」 | 这是网上流传最广的日期，属于**要求生效**节点，不是唯一截止日 |
-| 过渡期 | 开发者可申请延期，最晚到 **2026-05-31** | 给存量应用留缓冲，不代表豁免 |
-| 官方《支持 16 KB 页面大小》指南（2026-10 更新） | 写明 **自 2027-02-01 起，不支持 16KB 的应用更新将无法发布** | 当前官方文档中的**硬性阻断日**，针对「应用更新」 |
-| Android 17 | 可强制关闭 16KB 向后兼容，不兼容二进制**立即中止** | 兼容模式不再是长期退路 |
+| 2025-05 官方公告 | 宣布 2025-11-01 起提交 Play、targeting Android 15+ 的新应用与更新须支持 16KB；后续博客收窄表述为「使用 native C/C++ 代码的应用」 | 这是网上流传最广的日期，属于要求生效节点，不是唯一截止日 |
+| 过渡期 | 开发者可申请延期，最晚到 2026-05-31 | 给存量应用留缓冲，不代表豁免 |
+| 官方《支持 16 KB 页面大小》指南（2026-10 更新） | 写明 自 2027-02-01 起，不支持 16KB 的应用更新将无法发布 | 当前官方文档中的硬性阻断日，针对「应用更新」 |
+| Android 17 | 可强制关闭 16KB 向后兼容，不兼容二进制立即中止 | 兼容模式不再是长期退路 |
 | **现在（2026-11）** | 已是生效中的发布门槛 | 新版本上传前必须过检，别等最后期限 |
 
 > 面试时说「2025-11-01 起生效、官方当前写明 2027-02-01 起不兼容更新无法发布、期间有延期机制、以 Play Console 为准」，比只背一个日期更可信。
@@ -121,11 +113,11 @@ flowchart TD
 
 | 应用形态 | 是否受影响 | 说明 |
 |---|---|---|
-| 纯 Java/Kotlin，且**所有库与 SDK** 都无 native 代码 | 不受影响 | 官方明确「已支持 16KB 设备」，但仍建议回归 |
+| 纯 Java/Kotlin，且所有库与 SDK 都无 native 代码 | 不受影响 | 官方明确「已支持 16KB 设备」，但仍建议回归 |
 | 自研 C/C++ / NDK | 受影响 | 需重编，且要清理代码里的页大小假设 |
 | 引入第三方 SDK（推送、地图、支付、音视频、风控、ML、SQLite 替代方案等） | **最易中招** | 你没写 NDK，但 AAR 里的 `.so` 是别人用旧 NDK 编的 |
-| Flutter / React Native / uni-app / Unity | 看引擎与插件 | 主流引擎新版本多已适配，**坑在原生插件与绑定库** |
-| 把 `.so` 放 `assets/` 动态加载 | 受影响且**极易漏检** | APK Analyzer 只扫 `lib/`，不扫 `assets/`；`System.load` 时照样触发 `dlopen` 对齐校验 |
+| Flutter / React Native / uni-app / Unity | 看引擎与插件 | 主流引擎新版本多已适配，坑在原生插件与绑定库 |
+| 把 `.so` 放 `assets/` 动态加载 | 受影响且极易漏检 | APK Analyzer 只扫 `lib/`，不扫 `assets/`；`System.load` 时照样触发 `dlopen` 对齐校验 |
 
 **关键提醒**：`targetSdkVersion` 决定你是否落入规则范围，但**升 targetSdk 本身不解决任何对齐问题**。两件事完全独立。
 
@@ -174,10 +166,10 @@ flowchart TD
 | ZIP 对齐 | `zipalign -c -P 16 -v 4 app-release.apk` | 最后一行 `Verification successful` |
 | AAB 对齐 | `bundletool dump config --bundle=app-release.aab \| grep alignment` | `PAGE_ALIGNMENT_16K`（出现 `PAGE_ALIGNMENT_4K` 即不合格） |
 | ELF 段批量 | `check_elf_alignment.sh app-release.apk` | 所有库输出 `ALIGNED`，无 `UNALIGNED` |
-| 单个 ELF 段 | `llvm-objdump -p libfoo.so \| grep LOAD` | 每行 `align 2**14` 或更大；出现 `2**13`/`2**12` 即不合格 |
+| 单个 ELF 段 | `llvm-objdump -p libfoo.so \| grep LOAD` | 每行 `align 214` 或更大；出现 `213`/`2**12` 即不合格 |
 | RELRO | `llvm-readelf -Wl libfoo.so \| grep 'LOAD\|RELRO\|Type'` | 见下方三条件 |
 
-**RELRO 合规三条件**（满足任一即可）：
+RELRO 合规三条件（满足任一即可）：
 
 1. 程序头里根本没有 `GNU_RELRO` 段；
 2. `(GNU_RELRO.VirtAddr + GNU_RELRO.MemSiz) % 0x4000 == 0`；
@@ -203,11 +195,11 @@ adb shell getconf PAGE_SIZE
 三种搭环境的方式：
 
 1. **模拟器**：SDK Manager → SDK Platforms → Show Package Details → Android VanillaIceCream 或更高 → 勾选
-   `Google APIs Experimental 16 KB Page Size ARM 64 v8a System Image`（模拟 Pixel 用这个）或 `Intel x86_64 Atom System Image`；创建 AVD 时在 **Other Images** 里选它。
+   `Google APIs Experimental 16 KB Page Size ARM 64 v8a System Image`（模拟 Pixel 用这个）或 `Intel x86_64 Atom System Image`；创建 AVD 时在 Other Images 里选它。
 2. **真机开发者选项**：设置 → 系统 → 开发者选项 → 打开「以 16KB 页面大小启动设备」。支持机型：Pixel 8 / 8 Pro / 8a（Android 15 QPR1+）、Pixel 9 / 9 Pro / 9 Pro XL（QPR2+）、Pixel 9a（Android 16+）；先做系统更新。
 3. **Cuttlefish / Samsung Remote Test Lab**：CI 或没有 Pixel 时的替代。
 
-**向后兼容模式开关**（调试用，别拿来当修复）：
+向后兼容模式开关（调试用，别拿来当修复）：
 
 ```bash
 # 强制关闭兼容模式，让问题立刻暴露
@@ -251,12 +243,12 @@ echo "16KB 门禁通过"
 
 无需改动即可满足要求，但要做两件事：
 
-1. 用 `./gradlew :app:dependencies` 或直接解包 release APK，扫一遍 **AAR 传递依赖**（统计、崩溃上报、加解码、支付、地图、风控 SDK 最容易夹带 `.so`）；
+1. 用 `./gradlew :app:dependencies` 或直接解包 release APK，扫一遍 AAR 传递依赖（统计、崩溃上报、加解码、支付、地图、风控 SDK 最容易夹带 `.so`）；
 2. 仍跑一次 16KB 环境回归，防止后续依赖升级引入 native 库。
 
 ### 场景 B：自研 NDK（推荐路径）
 
-**第一步：升级工具链**。官方给的组合是 **AGP 8.5.1+ 且 NDK r28+**，配合已兼容的预编译依赖，应用默认就是 16KB 兼容的。
+第一步：升级工具链。官方给的组合是 AGP 8.5.1+ 且 NDK r28+，配合已兼容的预编译依赖，应用默认就是 16KB 兼容的。
 
 ```groovy
 // build.gradle（项目级）
@@ -270,7 +262,7 @@ android {
 }
 ```
 
-**第二步：无法升 NDK 时，显式加链接器 flag**（r27 及以下必须做）：
+第二步：无法升 NDK 时，显式加链接器 flag（r27 及以下必须做）：
 
 ```cmake
 # CMakeLists.txt
@@ -285,11 +277,11 @@ target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
 LOCAL_LDFLAGS += -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384
 ```
 
-> **两个易踩的坑**
-> 1. 网上不少文章写「NDK r27 起默认 16KB 对齐」，与官方文档不符：**r28+ 才默认**，r27 及以下必须手动加 flag。
-> 2. NDK r26 及更低版本自带的 `libc++_shared.so` 本身可能未 16KB 对齐。升级 NDK 是首选；实在不能升，可把 C++ 标准库**静态链接**进自己的 `.so`，或使用官方 CI 提供的 r23/r25 Canary（内含对齐版 `libc++_shared.so`）。
+> 两个易踩的坑
+> 1. 网上不少文章写「NDK r27 起默认 16KB 对齐」，与官方文档不符：r28+ 才默认，r27 及以下必须手动加 flag。
+> 2. NDK r26 及更低版本自带的 `libc++_shared.so` 本身可能未 16KB 对齐。升级 NDK 是首选；实在不能升，可把 C++ 标准库静态链接进自己的 `.so`，或使用官方 CI 提供的 r23/r25 Canary（内含对齐版 `libc++_shared.so`）。
 
-**第三步：清理代码里的页大小假设**
+第三步：清理代码里的页大小假设
 
 ```cpp
 // ❌ 4KB 假设：在 16KB 设备上算错偏移、浪费内存甚至崩溃
@@ -306,15 +298,15 @@ void* q = mmap(nullptr, page, PROT_READ | PROT_WRITE,
 
 补充规则：
 
-- 移除所有引用 `PAGE_SIZE` 常量、硬编码 `4096` / `0x1000` 的逻辑；NDK r27+ 在 16KB 模式下 `PAGE_SIZE` **未定义**，正好能帮你在编译期揪出来。
+- 移除所有引用 `PAGE_SIZE` 常量、硬编码 `4096` / `0x1000` 的逻辑；NDK r27+ 在 16KB 模式下 `PAGE_SIZE` 未定义，正好能帮你在编译期揪出来。
 - 若 `PAGE_SIZE` 原本只是「一个方便的值」（与真实页无关），换个语义明确的常量名，别继续借用它。
 - 复查所有 `mmap()` 及要求页对齐参数的 API；不经 `MAP_FIXED` 传给内核时，内核仍会占用整页。
 
-**第四步：检查 RELRO**。用第五层的 `llvm-readelf -Wl` 命令，若 `(VirtAddr + MemSiz) % 0x4000 != 0` 且同页还有可写数据，按上面的 16KB 对齐参数重编该 `.so` 并启用 RELRO 标志。
+第四步：检查 RELRO。用第五层的 `llvm-readelf -Wl` 命令，若 `(VirtAddr + MemSiz) % 0x4000 != 0` 且同页还有可写数据，按上面的 16KB 对齐参数重编该 `.so` 并启用 RELRO 标志。
 
 ### 场景 C：第三方 SDK / 跨端引擎（最常卡住的场景）
 
-自己做一张**归属表**，逐个销项：
+自己做一张归属表，逐个销项：
 
 | `.so` 路径 | 归属 SDK / 插件 | 当前版本 | 厂商是否提供 16KB 版 | 处置 |
 |---|---|---|---|---|
@@ -324,14 +316,14 @@ void* q = mmap(nullptr, page, PROT_READ | PROT_WRITE,
 
 要点：
 
-- **改自己的 NDK 代码不会让整个包合规**——Play 扫的是最终 AAB 里**每一个** 64 位 `.so`。
-- 主流引擎（Flutter、React Native、Unity）新版本多已提供 16KB 对齐二进制，但**原生插件 / binding 库**常是旧 NDK 编的，必须逐个核对，不能只看引擎版本。
+- 改自己的 NDK 代码不会让整个包合规——Play 扫的是最终 AAB 里每一个 64 位 `.so`。
+- 主流引擎（Flutter、React Native、Unity）新版本多已提供 16KB 对齐二进制，但原生插件 / binding 库常是旧 NDK 编的，必须逐个核对，不能只看引擎版本。
 - 预构建库必须以相同方式重编后重新导入；厂商不给兼容版本就升级、替换或推动对方出包。
 - 别漏 `assets/` 下的 `.so`：APK Analyzer 扫不到，`System.load()` 时照样走 `dlopen` 校验。
 
 ### 场景 D：AGP 实在升不到 8.5.1（临时兜底）
 
-改用**压缩共享库**规避 ZIP 对齐问题：
+改用压缩共享库规避 ZIP 对齐问题：
 
 ```kotlin
 // build.gradle.kts
@@ -366,7 +358,7 @@ android.bundle.enableUncompressedNativeLibs=false
 
 ### 场景 F：向后兼容模式 / 兼容警告
 
-系统对「4KB LOAD 段」或「4KB ZIP 对齐的未压缩 `.so`」会启用 16KB 向后兼容模式并在首次启动弹警告。可在应用信息页「高级 → 以页面大小兼容模式运行应用」开关，或用 `android:pageSizeCompat` 关闭警告。**这些都不改变二进制不合规的事实**，只能作为排查手段。
+系统对「4KB LOAD 段」或「4KB ZIP 对齐的未压缩 `.so`」会启用 16KB 向后兼容模式并在首次启动弹警告。可在应用信息页「高级 → 以页面大小兼容模式运行应用」开关，或用 `android:pageSizeCompat` 关闭警告。这些都不改变二进制不合规的事实，只能作为排查手段。
 
 ---
 
@@ -390,7 +382,7 @@ android.bundle.enableUncompressedNativeLibs=false
 
 | 追问 | 高分回答要点 | 低分回答特征 |
 |---|---|---|
-| 16KB 页到底是限制什么？ | 限制的是 **native 库的加载方式**：ELF `PT_LOAD.p_align` 与未压缩 `.so` 的 ZIP 偏移都要 >= 16384；源于 `extractNativeLibs=false` 下直接从 APK `mmap` | 「限制 APK 大小」「限制内存 16KB」 |
+| 16KB 页到底是限制什么？ | 限制的是 native 库的加载方式：ELF `PT_LOAD.p_align` 与未压缩 `.so` 的 ZIP 偏移都要 >= 16384；源于 `extractNativeLibs=false` 下直接从 APK `mmap` | 「限制 APK 大小」「限制内存 16KB」 |
 | 我全用 Kotlin，为什么还被 Play 警告？ | 依赖树里的 AAR 传递带 `.so`（统计/地图/音视频/风控/ML 常见）；要解包看 `lib/`，并查 `assets/` | 「Google 误判」 |
 | `zipalign -P 16` 过了就万事大吉？ | 不够。那只验证打包层；还要 `llvm-objdump` 看 ELF 段 `2**14`、RELRO 尾页、以及运行时页大小假设 | 只背一条命令 |
 | 为什么本地能装、Play 装的包就失败？ | AGP 8.3~8.5 下 `bundletool` 默认不做 zipalign，本地 APK 与 Play 从 AAB 生成的 APK 不是同一个包 | 「渠道包问题」含糊带过 |
@@ -398,14 +390,14 @@ android.bundle.enableUncompressedNativeLibs=false
 | 升 `targetSdkVersion` 能解决吗？ | 不能。targetSdk 只决定行为规则与是否被这条政策覆盖，对齐是编译 / 打包 / 源码三层的事 | 「升到 35 就好了」 |
 | 兼容模式能不能当长期方案？ | 不能。系统会弹用户可见警告，官方明确只是部分应用临时可用；Android 17 还能设 `fatal` 让不兼容二进制立即中止 | 「系统会自动兼容」 |
 | 政策截止日到底是哪天？ | 说清演变：2025-11-01 起生效、有延期机制、官方指南现写明 2027-02-01 起不兼容更新无法发布，并强调以 Play Console 为准 | 只报一个旧日期 |
-| 升 NDK 到哪个版本才默认对齐？ | **r28+**；r27 及以下要 `-Wl,-z,max-page-size=16384` 与 `-Wl,-z,common-page-size=16384` 两个 flag | 答「r27」（网上常见错答） |
+| 升 NDK 到哪个版本才默认对齐？ | r28+；r27 及以下要 `-Wl,-z,max-page-size=16384` 与 `-Wl,-z,common-page-size=16384` 两个 flag | 答「r27」（网上常见错答） |
 | 为什么要改成 16KB，收益是什么？ | 减少页表与 TLB 开销：启动平均快 3.16%（最高 30%）、功耗降 4.56%、系统启动快约 8%；代价是内存略增 | 只说「Google 强制要求」 |
 
 ---
 
 ## 参考
 
-- Android Developers《支持 16 KB 页面大小》：https://developer.android.google.cn/guide/practices/page-sizes （英文原版 `developer.android.com/guide/practices/page-sizes`，页面会持续更新，**政策日期以它和 Play Console 为准**）
+- Android Developers《支持 16 KB 页面大小》：https://developer.android.google.cn/guide/practices/page-sizes （英文原版 `developer.android.com/guide/practices/page-sizes`，页面会持续更新，政策日期以它和 Play Console 为准）
 - Android Developers Blog《Prepare your apps for Google Play's 16 KB page size compatibility requirement》
 - Android Developers Blog《Transition to using 16 KB page sizes for Android apps and games using Android Studio》
 - 站内相关：[JNI与NDK](/doc/Android/JNI与NDK)、[APK打包安装与签名](/doc/Android/APK打包安装与签名)、[Android发包打包与ADB调试命令全集](/doc/Android/Android发包打包与ADB调试命令全集)、[崩溃治理专题](/doc/Android/崩溃治理专题)

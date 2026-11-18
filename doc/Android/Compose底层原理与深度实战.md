@@ -2,23 +2,15 @@
 title: Compose底层原理与深度实战
 ---
 
-# Compose底层原理与深度实战
+# Compose底层原理与实战
 
-## 使用入口：先解决问题，再做验证
-
-解释状态改变后哪些界面重组以及如何控制代价。
-
-**先做基本操作**：先用 remember 和 mutableStateOf 写计数按钮，观察状态变化，再用工具检查重组范围。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
-## 🎯 核心技术原理与实战归纳
+## 核心技术原理与实战归纳
 - **核心设问与思考**：“Compose 的重组（Recomposition）底层是如何判断是否需要重新执行的？什么是**智能跳过（Smart Recomposition）**？”
 - **深水区追问**：“为什么明明传入的数据没有变，组件依然发生了频繁重组？**Compose 稳定性系统（Stability）**是如何判定 `@Stable` 与 `@Immutable` 的？`derivedStateOf` 与 `remember` 的性能分水岭在哪里？**Compose 三大执行阶段**中，如何通过 `Modifier.graphicsLayer` 跳过重组阶段实现 120 帧丝滑动画？”
 
 ---
 
-## 🏢 真实生产业务场景
+## 真实生产业务场景
 - **电商大促 Feed 流与复杂吸顶列表**：列表高速滑动时监听 Offset 避免全屏高频重组掉帧。
 - **动态手势与拖拽粒子动画**：在 Draw 阶段直接完成图形位移与透明度变化，绕过布局测量。
 - **音视频播放器组件**：与页面生命周期联动，精准在离开页面时停止解码并释放 Surface（`DisposableEffect`）。
@@ -28,7 +20,7 @@ title: Compose底层原理与深度实战
 ## 一、 重组底层原理与编译器幕后（Slot Table 与 Composer）
 
 ### 1. `@Composable` 注解背后的真相
-Compose 并不是纯运行时反射，而是由 **Compose 编译器插件（Kotlin Compiler Plugin）** 在编译阶段对 AST（抽象语法树）进行代码重写：
+Compose 并不是纯运行时反射，而是由 Compose 编译器插件（Kotlin Compiler Plugin） 在编译阶段对 AST（抽象语法树）进行代码重写：
 - 每一个被 `@Composable` 标记的函数，编译后其参数列表末尾都会被隐式注入两个参数：
   - **`$composer: Composer`**：负责调度与记录 UI 树节点。
   - **`$changed: Int`**：一个 32 位的整型位掩码，用于高效记录每个传入参数是否发生了变化。
@@ -45,7 +37,7 @@ void UserBadge(String name, int level, Composer $composer, int $changed)
 ---
 
 ### 2. 状态存储的核心：Slot Table（插槽表）
-Compose 底层使用了一种高效的内存数据结构 —— **Slot Table（插槽表）**。
+Compose 底层使用了一种高效的内存数据结构 —— Slot Table（插槽表）。
 - 它是一块连续的内存数组，记录了每一个 Composable 函数的执行位置、`remember` 缓存的状态对象、以及依赖的参数值。
 - 当执行函数前，编译器通过比较当前传入的值与 Slot Table 中存储的上一轮旧值（位运算 `$changed`）：
   - **若所有参数均未改变，且参数均为“稳定类型（Stable）”**：直接执行**智能跳过（Smart Skip）**，函数体根本不会执行！

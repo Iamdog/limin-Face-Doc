@@ -2,17 +2,9 @@
 title: Flutter渲染机制与三棵树深度剖析
 ---
 
-# Flutter渲染机制与三棵树深度剖析
+# Flutter渲染机制与三棵树剖析
 
-## 使用入口：先解决问题，再做验证
-
-解释 Flutter 的状态重建与布局绘制范围。
-
-**先做基本操作**：先用 setState 更新局部状态，观察 rebuild 和 repaint，再比较三棵树与边界。初次学习可先完成[本模块基础实践](/doc/flutter/Dart与Flutter页面基本使用)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
-## 🎯 核心技术原理与实战归纳
+## 核心技术原理与实战归纳
 - **核心设问与思考**：“Flutter 的 **Widget、Element、RenderObject 三棵树** 之间的生命周期与关联关系是什么？为什么 Widget 要设计成不可变（Immutable）的？”
 - **深水区追问**：“Flutter 经典布局铁律‘**Constraints go down. Sizes go up. Parent sets position**’底层是怎么执行的？什么是**重布局边界（Relayout Boundary）**与**重绘边界（Repaint Boundary）**？为什么加了 **`const`** 的 Widget 能够在父组件重构时彻底跳过 `build()`？”
 
@@ -20,15 +12,15 @@ title: Flutter渲染机制与三棵树深度剖析
 
 ## 一、 三棵树架构与生命周期映射
 
-::: tip 🏗️ 通俗心智模型：建筑工程的设计师、监工与施工队
+::: tip  通俗心智模型：建筑工程的设计师、监工与施工队
 很多初学者搞不懂为什么 Flutter 要折腾出“三棵树”，用建房子的过程一秒看透：
 * **`Widget 树` 就像【建筑设计图纸】（轻量、不可变 Immutable）**：
   * 图纸只是纯粹的参数描述（“墙刷红色，宽 200px”）。
-  * 哪怕业主只改了一个按钮颜色，**旧图纸直接揉成纸团扔掉，新画一张全新图纸**。因为图纸只有几张纸，每秒画一万张也根本不费力气（内存开销极轻）。
+  * 哪怕业主只改了一个按钮颜色，旧图纸直接揉成纸团扔掉，新画一张全新图纸。因为图纸只有几张纸，每秒画一万张也根本不费力气（内存开销极轻）。
 * **`Element 树` 就像【工地项目监工 / 总工程师】（核心枢纽、持有状态）**：
   * 监工永远常驻工地！他手里拿着新旧两张设计图纸对比（`canUpdate`：类型 `runtimeType` 和 `key` 变没变？）。
-  * 如果图纸类型一致，监工**坚决不拆楼重盖**，而是对施工队喊一句：“图纸没换，只是墙漆换个颜色，你们把油漆刷新一下！”
-  * **我们平时用的 `BuildContext`，本质上就是当前监工 `Element` 本人！**
+  * 如果图纸类型一致，监工坚决不拆楼重盖，而是对施工队喊一句：“图纸没换，只是墙漆换个颜色，你们把油漆刷新一下！”
+  * 我们平时用的 `BuildContext`，本质上就是当前监工 `Element` 本人！
 * **`RenderObject 树` 就像【一线施工搬砖队】（重型对象、直接操作 GPU）**：
   * 施工队干的全是重活：拿皮尺量尺寸（Layout 布局）、拿水平仪算坐标（Paint 绘制），并直接生成 GPU 图元。
   * 施工队结构最重，在监工的协调下尽量长久常驻复用，绝不轻易推倒地基！
@@ -71,7 +63,7 @@ flowchart LR
 
 ## 二、 核心布局算法铁律：约束向下，尺寸向上，父定位置
 
-::: tip 📏 通俗心智模型：家长给预算，孩子报花费，家长定房间
+::: tip  通俗心智模型：家长给预算，孩子报花费，家长定房间
 1. **Constraints go down（约束向下传递）**：
    - 就像家长给孩子划定预算范围：“给你 100~300 元，在这个范围里买衣服”（传递 `BoxConstraints(minWidth, maxWidth, minHeight, maxHeight)`）。
 2. **Sizes go up（尺寸向上反馈）**：
@@ -132,14 +124,14 @@ void performLayout() {
     child: CircularProgressIndicator(),
   )
   ```
-  Flutter 引擎会为该子树分配一个独立的离屏缓冲区，动画重绘时**仅刷新自己的图层纹理，绝不波及外部列表**！
+  Flutter 引擎会为该子树分配一个独立的离屏缓冲区，动画重绘时仅刷新自己的图层纹理，绝不波及外部列表！
 
 ---
 
 ## 四、 为什么 `const` Widget 能够拯救 Flutter 性能？
 
 - **底层原理**：
-  在 Dart 中，被 `const` 修饰的对象是在**编译期确定、并在内存常量池中全局单例复用**的。
+  在 Dart 中，被 `const` 修饰的对象是在编译期确定、并在内存常量池中全局单例复用的。
 - **Diff 机制对比**：
   当父组件执行 `setState()` 时，框架遍历子树并执行 `Widget.canUpdate(oldWidget, newWidget)`：
   ```dart
@@ -147,5 +139,5 @@ void performLayout() {
     return oldWidget.runtimeType == newWidget.runtimeType && oldWidget.key == newWidget.key;
   }
   ```
-  如果该 Widget 使用了 `const`，新旧对象的**内存物理引用完全相同（`identical(oldWidget, newWidget) == true`）**！
-  Element 发现引用一模一样，**立刻直接跳过该 Widget 及其所有子节点的 `build()` 方法**，实现亚毫秒级的极限智能跳过！
+  如果该 Widget 使用了 `const`，新旧对象的内存物理引用完全相同（`identical(oldWidget, newWidget) == true`）！
+  Element 发现引用一模一样，立刻直接跳过该 Widget 及其所有子节点的 `build()` 方法，实现亚毫秒级的极限智能跳过！

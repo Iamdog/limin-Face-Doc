@@ -4,15 +4,7 @@ title: EasyRefresh 下拉刷新与触底分页实战 (easy_refresh)
 
 # EasyRefresh 下拉刷新与触底分页实战 (easy_refresh)
 
-## 使用入口：先解决问题，再做验证
-
-组织列表刷新与分页状态。
-
-**先做基本操作**：先完成第一页、刷新和加载更多，验证无更多/错误/重复触发，再整合组件与并发保护。初次学习可先完成[本模块基础实践](/doc/flutter/Dart与Flutter页面基本使用)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
-在 Flutter 官方组件库中，`RefreshIndicator` 仅支持简单的顶部下拉刷新，**没有原生的上拉加载更多、没有「没有更多了」到底状态、且动画与 Header/Footer 高度高度受限**。`easy_refresh` 是 Flutter 生态中最成熟可控的刷新与分页框架。
+在 Flutter 官方组件库中，`RefreshIndicator` 仅支持简单的顶部下拉刷新，没有原生的上拉加载更多、没有「没有更多了」到底状态、且动画与 Header/Footer 高度高度受限。`easy_refresh` 是 Flutter 生态中最成熟可控的刷新与分页框架。
 
 ---
 

@@ -1,23 +1,42 @@
 ---
-title: SQL与MyBatis映射实战全景对照
+title: SQL与MyBatis映射实战对照
 ---
 
-# SQL与MyBatis映射实战全景对照
+# # SQL与MyBatis映射实战对照
 
-在真实全栈开发中，单纯会写原生 SQL 还远远不够，**将 SQL 准确、优雅、无 Bug 地翻译为 MyBatis XML 动态模板** 是后端与数据库交互的基本功。
+在真实全栈开发中，单纯会写原生 SQL 还远远不够，将 SQL 准确、优雅、无 Bug 地翻译为 MyBatis XML 动态模板 是后端与数据库交互的基本功。
 
-本篇采用 **“原生 SQL ➔ Java 实体类/Mapper 接口 ➔ MyBatis XML 模板 ➔ 避坑要点”** 逐一对照呈现，拿来即用！
+本篇采用 “原生 SQL  Java 实体类/Mapper 接口  MyBatis XML 模板  避坑要点” 逐一对照呈现，拿来即用！
 
 ---
 
 ## 对照 1：单表插入与主键自增自动回填
 
 ### 业务场景
-创建新用户后，需要**立刻拿到数据库生成的自增主键 `id`**，以便继续生成用户配置记录或发送消息。
+创建新用户后，需要立刻拿到数据库生成的自增主键 `id`，以便继续生成用户配置记录或发送消息。
 
-| 原生 SQL 语句 | MyBatis XML 映射写法 |
-| :--- | :--- |
-| ```sql<br>INSERT INTO `sys_user` (<br>  `username`, `email`, `created_time`<br>) VALUES (<br>  'zhangsan', 'test@qq.com', NOW()<br>);<br>``` | ```xml<br><!-- 核心：useGeneratedKeys="true" keyProperty="id" --><br><insert id="insertUser" <br>        useGeneratedKeys="true" <br>        keyProperty="id"><br>  INSERT INTO `sys_user` (<br>    `username`, `email`, `created_time`<br>  ) VALUES (<br>    #{username}, #{email}, NOW()<br>  )<br></insert><br>``` |
+### 1. 原生 SQL 语句
+```sql
+INSERT INTO `sys_user` (
+  `username`, `email`, `created_time`
+) VALUES (
+  'zhangsan', 'test@qq.com', NOW()
+);
+```
+
+### 2. MyBatis XML 映射写法
+```xml
+<!-- 核心：useGeneratedKeys="true" keyProperty="id" -->
+<insert id="insertUser"
+        useGeneratedKeys="true"
+        keyProperty="id">
+  INSERT INTO `sys_user` (
+    `username`, `email`, `created_time`
+  ) VALUES (
+    #{username}, #{email}, NOW()
+  )
+</insert>
+```
 
 - **Java 调用端效果**：
   ```java
@@ -53,7 +72,7 @@ VALUES
   </foreach>
 </insert>
 ```
-> **⚠️ 生产避坑军规**：单次 `foreach` 批量插入的数据量**建议控制在 500~1000 条**以内。如果一次性拼入数万条，会导致拼装出的 SQL 超出 MySQL 的 `max_allowed_packet`（默认通常 4MB/16MB）而直接报错崩溃。
+> ** 生产避坑军规**：单次 `foreach` 批量插入的数据量**建议控制在 500~1000 条**以内。如果一次性拼入数万条，会导致拼装出的 SQL 超出 MySQL 的 `max_allowed_packet`（默认通常 4MB/16MB）而直接报错崩溃。
 
 ---
 
@@ -224,7 +243,7 @@ public class OrderVO {
 
 ---
 
-## ⚠️ MyBatis 生产 4 大经典踩坑速查宝典
+## MyBatis 生产 4 大经典踩坑速查宝典
 
 ### 1. 致命大坑：整型字段值为 `0` 时被误判为空字符串
 - **错误写法（生产高频 Bug）**：

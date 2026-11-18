@@ -4,14 +4,6 @@ title: 组合式 API 与实战解析
 
 # 组合式 API 与实战解析
 
-## 使用入口：先解决问题，再做验证
-
-按业务组织状态和副作用并复用逻辑。
-
-**先做基本操作**：先用 script setup 写页面，把稳定重复行为抽成 composable，验证清理与多个实例，再讲执行模型。初次学习可先完成[本模块基础实践](/doc/Vue/Vue组件与页面基本使用)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 > **一句话结论**：Composition API 不是「换一种写法」，而是把**逻辑复用的单位从「组件选项」变成「函数」**——同一个业务能力的状态、副作用、清理逻辑能收在一个 `useXxx` 里，从而可被任意组件组合、单独测试、完整类型推导。
 
 ## 30 秒速览
@@ -41,7 +33,7 @@ flowchart TB
     OLD --> NEW
 ```
 
-一个 500 行组件里，「搜索」「分页」「权限」「埋点」四块逻辑在 Options API 里交错分布在 5 个选项中，改一处要上下跳；Composition API 里它们是 4 个可独立阅读的函数。这才是核心收益，**不是为了少写几行代码**。
+一个 500 行组件里，「搜索」「分页」「权限」「埋点」四块逻辑在 Options API 里交错分布在 5 个选项中，改一处要上下跳；Composition API 里它们是 4 个可独立阅读的函数。这才是核心收益，不是为了少写几行代码。
 
 ## 一、`setup` 与 `<script setup>` 的执行时机
 
@@ -82,7 +74,7 @@ export default {
 }
 ```
 
-因为模板与 setup 在**同一闭包**，编译器能直接引用局部变量（无需 `this` 代理查找），还能做静态提升与 `patchFlag` 标记——这是 `<script setup>` 比普通 `setup()` 渲染更快的真实原因，不只是「写得少」。
+因为模板与 setup 在同一闭包，编译器能直接引用局部变量（无需 `this` 代理查找），还能做静态提升与 `patchFlag` 标记——这是 `<script setup>` 比普通 `setup()` 渲染更快的真实原因，不只是「写得少」。
 
 ## 二、逻辑复用三代方案对比
 
@@ -94,10 +86,10 @@ export default {
 
 ## 三、写对 composable 的四条规则（附生产级 `useRequest`）
 
-1. **函数名 `useXxx`，返回响应式引用**——不要返回普通值快照；
-2. **参数用 `MaybeRefOrGetter` + `toValue()`**——调用方传 `ref`、`getter`、字面量都能工作；
-3. **副作用必须可清理**——`onScopeDispose` 里取消请求、清除定时器、解绑事件；
-4. **生命周期钩子只能在 setup 同步调用栈里注册**——在 `setTimeout` / `await` 之后调用 `onMounted` 会丢失当前实例并告警。
+1. 函数名 `useXxx`，返回响应式引用——不要返回普通值快照；
+2. 参数用 `MaybeRefOrGetter` + `toValue()`——调用方传 `ref`、`getter`、字面量都能工作；
+3. 副作用必须可清理——`onScopeDispose` 里取消请求、清除定时器、解绑事件；
+4. 生命周期钩子只能在 setup 同步调用栈里注册——在 `setTimeout` / `await` 之后调用 `onMounted` 会丢失当前实例并告警。
 
 ```ts
 // composables/useRequest.ts —— 覆盖竞态、防抖、取消、错误、清理
@@ -182,22 +174,22 @@ const { data, loading, error, refresh } = useRequest<Item[]>(url, { debounce: 30
 
 | 维度 | Vue Composition API | React Hooks |
 |---|---|---|
-| 执行次数 | `setup` 只执行**一次** | 每次 render 都重新执行全部 hooks |
+| 执行次数 | `setup` 只执行一次 | 每次 render 都重新执行全部 hooks |
 | 依赖数组 | 自动收集（`watchEffect` / `computed`） | 必须手写 `[dep]`，漏写导致闭包陷阱 |
 | 状态载体 | `ref` 是稳定引用，跨渲染不变 | `useState` 每次返回新值快照 |
 | 条件调用 | 生命周期钩子仍建议同步顶层调用，但 `computed`/`watch` 可在条件内 | 严禁在条件/循环中调用 hooks |
 | 清理时机 | `onScopeDispose` / `onCleanup` | `useEffect` 返回函数，依赖变化时先清理再执行 |
 
-一句话答法：**Vue 靠响应式依赖自动追踪，React 靠重新执行函数 + 依赖数组比对**，因此 Vue 没有 stale closure 问题，也不必记 `useCallback`/`useMemo` 那一套。
+一句话答法：Vue 靠响应式依赖自动追踪，React 靠重新执行函数 + 依赖数组比对，因此 Vue 没有 stale closure 问题，也不必记 `useCallback`/`useMemo` 那一套。
 
 ## 六、什么时候不该抽 composable
 
 - 只用一次、且不足 20 行的逻辑：抽出去反而增加跳转成本；
 - 纯展示型计算：一个 `computed` 就够，不必包装成 `useXxx`；
-- 涉及模板结构复用：该抽的是**组件**，不是函数；
+- 涉及模板结构复用：该抽的是组件，不是函数；
 - 需要跨应用共享、且带持久化：交给 [Pinia](/doc/Vue/Pinia状态管理与实战解析)，composable 是组件级生命周期绑定的。
 
-判断标准很简单：**「这段逻辑换一个页面还要不要？要不要单独测？」** 两个都是「要」才抽。
+判断标准很简单：「这段逻辑换一个页面还要不要？要不要单独测？」 两个都是「要」才抽。
 
 ## 七、高频追问（含高分/低分特征）
 

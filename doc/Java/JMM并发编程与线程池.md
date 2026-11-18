@@ -4,18 +4,10 @@ title: JMM并发编程与线程池调优
 
 # JMM并发编程与线程池调优
 
-## 使用入口：先解决问题，再做验证
-
-安全共享数据并控制并发任务。
-
-**先做基本操作**：先使用 ExecutorService 提交、等待、取消并关闭任务，复现共享计数竞争，再解释原子性、可见性和锁。初次学习可先完成[本模块基础实践](/doc/Java/Java语言基础与日常开发)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 > **一句话大白话**：
-> - **JMM（Java 内存模型）**：多核 CPU 跑得太快，每个核都有自己的私家小抽屉（L1/L2 高速缓存与工作内存）。为了不读到别家抽屉里的过期数据，JMM 制定了规则：`volatile` 就是给共享数据装了根“光纤专线”，只要有人改了，立马通电强刷回主仓库，并让其他所有抽屉里的旧数据当场作废！
-> - **AQS（锁的基石）**：就是一个**带叫号机的银行大堂经理**。谁先抢到窗口（CAS 抢到 `state=1`）谁就办业务；没抢到的按先来后到去后面的长椅（CLH 双向排队链表）上坐着睡觉（`park()`），前面办完了大堂经理再叫下一个起来（`unpark()`）。
-> - **线程池**：就像**一家外卖站点的骑手运力调度系统**。固定编制（核心线程）负责日常底量，高峰期先堆积进暂存货架（阻塞队列）；货架堆满了才招募临时工（最大线程）；爆仓了就执行拒单策略（拒绝策略）。
+> - JMM（Java 内存模型）：多核 CPU 跑得太快，每个核都有自己的私家小抽屉（L1/L2 高速缓存与工作内存）。为了不读到别家抽屉里的过期数据，JMM 制定了规则：`volatile` 就是给共享数据装了根“光纤专线”，只要有人改了，立马通电强刷回主仓库，并让其他所有抽屉里的旧数据当场作废！
+> - AQS（锁的基石）：就是一个带叫号机的银行大堂经理。谁先抢到窗口（CAS 抢到 `state=1`）谁就办业务；没抢到的按先来后到去后面的长椅（CLH 双向排队链表）上坐着睡觉（`park()`），前面办完了大堂经理再叫下一个起来（`unpark()`）。
+> - 线程池：就像一家外卖站点的骑手运力调度系统。固定编制（核心线程）负责日常底量，高峰期先堆积进暂存货架（阻塞队列）；货架堆满了才招募临时工（最大线程）；爆仓了就执行拒单策略（拒绝策略）。
 
 ---
 
@@ -61,7 +53,7 @@ flowchart TD
 ### 1. `volatile` 的三大核心特性
 - **保证内存可见性**：底层利用 CPU 缓存一致性协议（如 Intel 的 MESI）。任何对 `volatile` 变量的写操作都会强制在汇编指令前添加 `lock` 前缀，把工作内存的数据即时刷入主内存，并让其他核心对应缓存行（Cache Line）状态置为无效（Invalid），迫使其下次读取必须重新访问主内存。
 - **禁止指令重排序**：在编译和运行时，JVM 会在指令前后插入四种**内存屏障（Memory Barrier：LoadLoad、StoreStore、LoadStore、StoreLoad）**，确保前后指令不被打乱。
-- **注意：`volatile` 不保证原子性**！
+- 注意：`volatile` 不保证原子性！
   - 像 `count++` 这种操作在底层字节码分为：读值、加一、写回三步。如果两个线程同时读到 10，分别加到 11 写回，最终结果是 11 而不是 12。保证原子性必须使用 `synchronized` 或 `AtomicInteger`（底层 CAS）。
 
 ---
@@ -126,13 +118,13 @@ AQS 是 `ReentrantLock`、`CountDownLatch`、`Semaphore`、`ReentrantReadWriteLo
 1. **`volatile int state`（核心同步状态标尺）**：
    - 0 代表空闲无人占用；
    - 1 代表锁已被某个线程独占；
-   - 大于 1 代表持有该锁的线程发生了**重入**（每次重入 state 加一，退出时减一）。
+   - 大于 1 代表持有该锁的线程发生了重入（每次重入 state 加一，退出时减一）。
 2. **CAS 原子修改状态**：
    - 线程通过 `compareAndSetState(0, 1)` 尝试抢锁。底层调用操作系统的原子硬件指令 `cmpxchg`，只有一个线程能成功，无锁自旋开销小。
 3. **CLH 变体双向链表队列**：
    - 没抢到锁的线程，会被包装成 `Node` 节点，加入到双向链表的队尾。
-   - 节点设置等待状态（如 `SIGNAL = -1`），随后通过底层 **`LockSupport.park()`** 让当前线程安全挂起让出 CPU。
-   - 当持有锁的线程调用 `unlock()` 时，`state` 归零，并调用 **`LockSupport.unpark(head.next)`** 唤醒排在首位的排队线程。
+   - 节点设置等待状态（如 `SIGNAL = -1`），随后通过底层 `LockSupport.park()` 让当前线程安全挂起让出 CPU。
+   - 当持有锁的线程调用 `unlock()` 时，`state` 归零，并调用 `LockSupport.unpark(head.next)` 唤醒排在首位的排队线程。
 
 ---
 
@@ -140,7 +132,7 @@ AQS 是 `ReentrantLock`、`CountDownLatch`、`Semaphore`、`ReentrantReadWriteLo
 
 ### 为什么大厂规范严禁使用 `Executors`？
 - **`Executors.newFixedThreadPool()` 和 `newSingleThreadExecutor()`**：
-  底层默认使用的阻塞队列是 `new LinkedBlockingQueue<Runnable>()`。其默认容量为 **`Integer.MAX_VALUE`（21 亿多）**，接近无界！当上游流量激增、下游处理变慢时，任务无限堆积进内存，**直接引发 JVM 堆内存 OOM 导致进程崩盘**！
+  底层默认使用的阻塞队列是 `new LinkedBlockingQueue<Runnable>()`。其默认容量为 `Integer.MAX_VALUE`（21 亿多），接近无界！当上游流量激增、下游处理变慢时，任务无限堆积进内存，直接引发 JVM 堆内存 OOM 导致进程崩盘！
 - **`Executors.newCachedThreadPool()`**：
   最大线程数允许开到 `Integer.MAX_VALUE`，高并发下一瞬间创建几万个操作系统线程，直接榨干操作系统线程数上限和物理内存。
 
@@ -204,9 +196,9 @@ public class ProductionThreadPoolFactory {
 
 | 场景 | 危险程度 | 根因与现象 | 生产避坑治理方案 |
 |---|---|---|---|
-| **`Executors` 创建线程池导致 OOM** | 致命 | 默认无界队列或无限最大线程，任务排队撑爆堆内存 | **强制手工使用 `ThreadPoolExecutor`**，队列指定容量（如 500~2000） |
+| **`Executors` 创建线程池导致 OOM** | 致命 | 默认无界队列或无限最大线程，任务排队撑爆堆内存 | 强制手工使用 `ThreadPoolExecutor`，队列指定容量（如 500~2000） |
 | **线程池内部任务异常直接静默消失** | 高 | 使用 `submit()` 提交任务，内部抛出的异常被吞进 `Future`，不调 `get()` 连异常日志都看不到 | 1. 提交用 `execute()`；<br/>2. 业务 `Runnable` 最外层显式包裹 `try-catch(Throwable)` 打印堆栈 |
-| **`ThreadLocal` 变量在线程池中串号** | 严重 | 线程池中的工作线程是复用的，如果用完没调 `remove()`，下个请求会拿到上一个用户的登录身份 | 在 Filter、AOP 或拦截器的 `finally` 块中**强制调用 `threadLocal.remove()`** |
+| **`ThreadLocal` 变量在线程池中串号** | 严重 | 线程池中的工作线程是复用的，如果用完没调 `remove()`，下个请求会拿到上一个用户的登录身份 | 在 Filter、AOP 或拦截器的 `finally` 块中强制调用 `threadLocal.remove()` |
 | **Spring 容器关闭时线程池暴力中断** | 中 | 应用重新发布发版时，正在执行的转账等核心任务被直接 kill | 配合优雅停机机制，调用 `executor.shutdown()` + `awaitTermination(30, TimeUnit.SECONDS)` |
 
 ---

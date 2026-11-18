@@ -1,14 +1,8 @@
 # ContentProvider
 
-
-
 ## 是什么?
 
-
-
-**ContentProvider 是 Android 系统提供的一种统一数据访问接口，允许不同应用之间通过 URI 的形式，安全地访问、增删改查数据**。
-
-
+ContentProvider 是 Android 系统提供的一种统一数据访问接口，允许不同应用之间通过 URI 的形式，安全地访问、增删改查数据。
 
 ### 核心组成部分
 
@@ -17,13 +11,9 @@
   - `authority`：通常是包名，用于系统定位具体的 Provider。
 - **ContentResolver**：外部应用（客户端）不直接调用 Provider，而是通过 `Context.getContentResolver()` 来操作。
 - **ContentObserver**：用于监听数据变化，实现类似“发布-订阅”的机制。
-- **Cursor：** 数据结果集，类似数据库的游标
-
-
+- Cursor： 数据结果集，类似数据库的游标
 
 `URI组成部分`
-
-
 
 | 部分          | 说明                      | 示例            |
 | ------------- | ------------------------- | --------------- |
@@ -32,17 +22,11 @@
 | **path**      | 数据表或资源路径          | notes           |
 | **id**        | 具体数据项（可选）        | 5               |
 
-
-
 ### 工作原理
 
-ContentProvider 底层基于 **Binder** 进行进程间通信（IPC）。它采用数据库类似的 CRUD（增删改查）模型。
-
-
+ContentProvider 底层基于 Binder 进行进程间通信（IPC）。它采用数据库类似的 CRUD（增删改查）模型。
 
 ## 什么时候用 ContentProvider？
-
-
 
 - 需要向其他应用暴露数据
 - 需要细粒度的权限控制
@@ -55,11 +39,7 @@ ContentProvider 底层基于 **Binder** 进行进程间通信（IPC）。它采�
 - 简单的配置共享（用 SharedPreferences）
 - 频繁的小数据传递（用 Intent 或 EventBus）
 
-
-
 ## 最小案例实践
-
-
 
 ### 服务端：MyProviderApp
 
@@ -136,7 +116,7 @@ public class MyProvider extends ContentProvider {
 
 ### AndroidManifest.xml (服务端)
 
-**必须配置 `authorities` 和 `exported`。**
+必须配置 `authorities` 和 `exported`。
 
 XML
 
@@ -210,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
 
 ### AndroidManifest.xml (客户端 - Android 11+ 必填)
 
-**注意：** Android 11 (API 30) 及以上版本增加了软件包可见性限制，客户端必须声明 `<queries>`。
+注意： Android 11 (API 30) 及以上版本增加了软件包可见性限制，客户端必须声明 `<queries>`。
 
 XML
 
@@ -226,15 +206,11 @@ XML
 </manifest>
 ```
 
-
-
 ## 核心重点考查
-
-
 
 ### ContentProvider 为什么要在四大组件中占一席之地？
 
-**痛点：** 跨进程传输大批量数据时，如果直接用 AIDL 传递 List 或 Map，由于 Binder 缓冲区限制（通常约 1MB），容易触发 `TransactionTooLargeException`。 **优势：**
+痛点： 跨进程传输大批量数据时，如果直接用 AIDL 传递 List 或 Map，由于 Binder 缓冲区限制（通常约 1MB），容易触发 `TransactionTooLargeException`。 优势：
 
 - **共享内存**：ContentProvider 在跨进程传输大数据时，通常利用 **Anonymous Shared Memory (Ashmem)** 结合文件描述符传递，效率极高。
 - **标准化**：为不同应用间的数据共享提供了统一标准的接口。
@@ -256,9 +232,9 @@ XML
 
 ### 4. ContentProvider 是线程安全的吗？
 
-**结论：不是。**
+结论：不是。
 
-- 多个应用同时通过 ContentResolver 访问时，Provider 的 `query/insert/update/delete` 方法会运行在 Provider 进程的 **Binder 线程池**中。
+- 多个应用同时通过 ContentResolver 访问时，Provider 的 `query/insert/update/delete` 方法会运行在 Provider 进程的 Binder 线程池中。
 - **应对方案**：如果底层是 SQLite，因为 SQLite 本身有数据库级锁，通常不需要额外同步；如果是操作文件或内存数据，必须手动加锁（synchronized 或 ReentrantLock）。
 
 ### 5. 如何监听 ContentProvider 的数据变化？
@@ -267,6 +243,4 @@ XML
 
 1. **Provider 端**：在执行完 `insert/update/delete` 后，调用 `getContext().getContentResolver().notifyChange(uri, null)`。
 2. **客户端**：使用 `getContentResolver().registerContentObserver(uri, true, observer)` 注册监听。
-
-
 

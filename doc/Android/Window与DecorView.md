@@ -4,14 +4,6 @@ title: Android Window与DecorView
 
 # Android Window与DecorView
 
-## 使用入口：先解决问题，再做验证
-
-正确显示页面、弹窗并处理窗口尺寸与 Insets。
-
-**先做基本操作**：先通过 Activity 设置内容、展示 Dialog 并测试返回/旋转/边到边，再梳理 Window 与 ViewRootImpl。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 `Window`、`DecorView`、`ViewRootImpl` 是 Android UI 体系的核心支柱。很多关键机制比如界面显示、事件分发、窗口层级、Dialog/PopupWindow 区别，底层都能追到这几个对象。
 
 ## 1. Window 是什么？

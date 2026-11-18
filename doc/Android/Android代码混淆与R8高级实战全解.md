@@ -1,26 +1,18 @@
 ---
-title: Android代码混淆与R8高级实战全解
+title: Android代码混淆与R8高级实战
 ---
 
-# Android 代码混淆与 R8 高级实战全解
+# # Android 代码混淆与 R8 高级实战
 
-## 使用入口：先解决问题，再做验证
-
-缩小 release 产物并正确处理反射、序列化和 JNI。
-
-**先做基本操作**：先开启项目 release 的 minify、归档 mapping、安装 release 验证关键链路，再根据证据写 keep 规则。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
-## 🎯 核心技术原理与架构心智模型
+## 核心技术原理与架构心智模型
 
 代码混淆与字节码优化不仅是 Android 应用打包上线的最后一道“防线”，更是 APK/AAB 瘦身（Shrink）与运行时性能优化的关键环节。
 
 深入掌握混淆技术需要回答四个核心命题：
-1. **“从 ProGuard 到 D8/R8，现代 Android 编译管线发生了什么本质变革？”**
-2. **“Tree-Shaking（死代码消除）的底层依据是什么？为什么配置不当会导致线上反射、JSON 解析、JNI 大面积崩溃？”**
-3. **“`-keep`、`-keepclassmembers`、`-keepclasseswithmembers` 与带 `-names` 的系列指令，作用边界究竟有何区别？”**
-4. **“线上收到一串 `a.b.c(Unknown Source)` 的混淆崩溃堆栈，如何通过 `retrace` 与 `mapping.txt` 精确还原至源码行号？”**
+1. “从 ProGuard 到 D8/R8，现代 Android 编译管线发生了什么本质变革？”
+2. “Tree-Shaking（死代码消除）的底层依据是什么？为什么配置不当会导致线上反射、JSON 解析、JNI 大面积崩溃？”
+3. “`-keep`、`-keepclassmembers`、`-keepclasseswithmembers` 与带 `-names` 的系列指令，作用边界究竟有何区别？”
+4. “线上收到一串 `a.b.c(Unknown Source)` 的混淆崩溃堆栈，如何通过 `retrace` 与 `mapping.txt` 精确还原至源码行号？”
 
 ---
 
@@ -34,7 +26,7 @@ Java 源码 ──► javac ──► .class 文件 ──► ProGuard ──►
 * **缺陷**：代码需要先被解析为 Java 字节码，经过 ProGuard 处理后再被 `dx` 重新解析转换为 Dalvik/ART 字节码。两道工序存在大量重复的 Class 解析与 I/O 开销，编译耗时极长。
 
 ### 2. 现代 R8 全合一流水线（Next-Gen Desugaring & Dexing）
-Google 引入了 **D8**（下一代 Dex 编译器）和 **R8**（集成了 ProGuard 功能的 Dex 编译器）：
+Google 引入了 D8（下一代 Dex 编译器）和 R8（集成了 ProGuard 功能的 Dex 编译器）：
 
 ```text
 Java / Kotlin 源码
@@ -86,16 +78,16 @@ flowchart LR
 
 ---
 
-## 三、 Keep 规则指令全景解析
+## 三、 Keep 规则指令解析
 
 混淆规则中，开发者最容易混淆的是带有不同后缀的 `-keep` 指令：
 
 | 指令 | 保留类？ | 保留类中成员？ | 触发条件 / 特性 |
 | :--- | :--- | :--- | :--- |
-| **`-keep`** | ✅ 是 | ✅ 是 | **最全面**。类和指定成员既不被剔除，也不被混淆改名。 |
-| **`-keepclassmembers`** | ❌ 否（类名可被混淆/剔除） | ✅ 是 | **仅保护成员**。只有在该类被其他代码引用而保留下来时，指定成员才被保留。 |
-| **`-keepclasseswithmembers`** | ✅ 是 | ✅ 是 | **带筛选条件的 `-keep`**。只有类同时拥有指定的全部成员时，才保留该类及其成员（常用于 JNI native 匹配）。 |
-| **`-keepnames`** | 仅不改名 | 仅不改名 | 若该类/成员无人调用，**仍会被 Tree-Shaking 删掉**；只有在被使用时才保留原名。 |
+| **`-keep`** | 是 | 是 | 最全面。类和指定成员既不被剔除，也不被混淆改名。 |
+| **`-keepclassmembers`** | 否（类名可被混淆/剔除） | 是 | 仅保护成员。只有在该类被其他代码引用而保留下来时，指定成员才被保留。 |
+| **`-keepclasseswithmembers`** | 是 | 是 | 带筛选条件的 `-keep`。只有类同时拥有指定的全部成员时，才保留该类及其成员（常用于 JNI native 匹配）。 |
+| **`-keepnames`** | 仅不改名 | 仅不改名 | 若该类/成员无人调用，仍会被 Tree-Shaking 删掉；只有在被使用时才保留原名。 |
 | **`-keepclassmembernames`** | 允许类改名 | 仅成员不改名 | 成员若被引用，保持原名。 |
 
 ### 1. 通配符模式匹配表
@@ -134,7 +126,7 @@ flowchart LR
 
 ## 四、 生产环境常见混淆踩坑与避坑法则
 
-代码混淆后最常发生的不是编译报错，而是**运行时闪退（NoSuchMethodError / NullPointerException）或业务异常**。
+代码混淆后最常发生的不是编译报错，而是运行时闪退（NoSuchMethodError / NullPointerException）或业务异常。
 
 ### 避坑 1：反射（Reflection）调用被混淆
 * **崩溃现象**：`java.lang.NoSuchMethodException: com.example.util.Helper.calculate()`
@@ -236,6 +228,7 @@ java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.Stri
 # 执行堆栈反解
 ./retrace mapping.txt crash.txt
 ```
+
 #### 还原后的清晰堆栈：
 ```text
 java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.String com.example.app.model.User.getAccessToken()' on a null object reference
@@ -244,7 +237,7 @@ java.lang.NullPointerException: Attempt to invoke virtual method 'java.lang.Stri
 ```
 
 ::: warning 生产规范警示
-**每次发包上线前，必须将当前版本的 `mapping.txt` 归档到公司内部的 CI/CD 或版本归档服务器！**  
+每次发包上线前，必须将当前版本的 `mapping.txt` 归档到公司内部的 CI/CD 或版本归档服务器！  
 如果发版时没有保存 `mapping.txt`，一旦线上爆发未知崩溃，由于类名行号完全错乱，你将面对无法破译的“天书”堆栈！
 :::
 

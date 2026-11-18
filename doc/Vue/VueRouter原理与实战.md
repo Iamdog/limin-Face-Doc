@@ -2,17 +2,9 @@
 title: VueRouter底层路由与权限守卫深度实战
 ---
 
-# VueRouter底层路由与权限守卫深度实战
+# VueRouter底层路由与权限守卫实战
 
-## 使用入口：先解决问题，再做验证
-
-实现页面导航、参数和刷新恢复。
-
-**先做基本操作**：先配置路由与 RouterView，测试直接访问深层 URL 和返回，再比较 hash/history 与服务端回退。初次学习可先完成[本模块基础实践](/doc/Vue/Vue组件与页面基本使用)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
-## 🎯 核心技术原理与实战归纳
+## 核心技术原理与实战归纳
 - **核心设问与思考**：“`createWebHashHistory` (Hash 模式) 与 `createWebHistory` (HTML5 History 模式) 的**底层通信与事件监听机制**有何区别？”
 - **深水区追问**：“为什么生产环境使用 History 模式打包部署后，**一按浏览器 F5 刷新就会出现 Nginx 404 Not Found**？后台管理系统中基于 RBAC 角色的**动态路由（`router.addRoute`）**是如何落地的？全局前置守卫 `beforeEach` 中最容易出现的**死循环卡死白屏**该如何彻底规避？”
 
@@ -23,8 +15,8 @@ title: VueRouter底层路由与权限守卫深度实战
 ### 1. Hash 模式（`createWebHashHistory`）
 - **URL 特征**：包含 `#` 符号，如 `https://example.com/#/user/profile`。
 - **底层原理**：
-  - `#` 后面的字符被称为 URL 的 Hash 片段，**它不会包含在发送给服务端的 HTTP 请求中**（即服务端接收到的永远只有 `https://example.com/`）。
-  - 浏览器通过监听 **`window.onhashchange`** 事件捕获 URL 变化，前端路由根据哈希值切换不同组件。
+  - `#` 后面的字符被称为 URL 的 Hash 片段，它不会包含在发送给服务端的 HTTP 请求中（即服务端接收到的永远只有 `https://example.com/`）。
+  - 浏览器通过监听 `window.onhashchange` 事件捕获 URL 变化，前端路由根据哈希值切换不同组件。
 - **优缺点**：兼容性极好，部署在任意静态托管服务器均可直接运行，不需要后端任何额外配置；缺点是 URL 不美观，某些三方 OAuth 回调与支付接口会吞噬 `#`。
 
 ---
@@ -32,22 +24,22 @@ title: VueRouter底层路由与权限守卫深度实战
 ### 2. HTML5 History 模式（`createWebHistory`）
 - **URL 特征**：标准优雅的自然路径，如 `https://example.com/user/profile`。
 - **底层原理**：
-  - 基于 HTML5 History API 提供的 **`history.pushState()`** 与 **`history.replaceState()`**。
-  - 这两个 API 可以在**修改浏览器地址栏 URL 的同时，绝对不向后端发起新的 HTTP 请求**！
-  - 当用户点击浏览器的【前进】或【后退】按钮时，触发 **`window.onpopstate`** 事件完成视图同步。
+  - 基于 HTML5 History API 提供的 `history.pushState()` 与 `history.replaceState()`。
+  - 这两个 API 可以在修改浏览器地址栏 URL 的同时，绝对不向后端发起新的 HTTP 请求！
+  - 当用户点击浏览器的【前进】或【后退】按钮时，触发 `window.onpopstate` 事件完成视图同步。
 
 ---
 
 ## 二、 生产排错：History 模式部署 Nginx 刷新 404 事故
 
 ### 1. 事故根因
-在 SPA（单页面应用）中，服务器根目录下**其实只有一个 `index.html` 实体文件**，根本不存在 `/user/profile` 这个真实的物理目录或文件。
+在 SPA（单页面应用）中，服务器根目录下其实只有一个 `index.html` 实体文件，根本不存在 `/user/profile` 这个真实的物理目录或文件。
 - 初次访问 `https://example.com/`，Nginx 正常返回 `index.html`，随后由前端路由根据代码渲染 `/user/profile`，一切正常。
-- 但如果用户在当前页面直接按下 **F5 刷新**：浏览器会直接向 Nginx 发起真实的 HTTP GET 请求：`GET /user/profile`。
-- Nginx 在服务器文件系统找不到 `/user/profile` 目录，直接返回 **404 Not Found**！
+- 但如果用户在当前页面直接按下 F5 刷新：浏览器会直接向 Nginx 发起真实的 HTTP GET 请求：`GET /user/profile`。
+- Nginx 在服务器文件系统找不到 `/user/profile` 目录，直接返回 404 Not Found！
 
 ### 2. 生产级 Nginx 配置修复方案
-通过配置 **`try_files`**：先尝试寻找真实物理文件，找不到则统一重定向返回根目录的 `index.html`，把路由解析权还给 Vue：
+通过配置 `try_files`：先尝试寻找真实物理文件，找不到则统一重定向返回根目录的 `index.html`，把路由解析权还给 Vue：
 
 ```nginx
 server {

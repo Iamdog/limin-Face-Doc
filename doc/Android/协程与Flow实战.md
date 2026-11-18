@@ -147,7 +147,7 @@ fun main() = runBlocking {
 
 cancel 发出取消，不表示目标已立即停止；cancelAndJoin 等其结束。delay、常见挂起 API 会检查取消，CPU 循环需 ensureActive/yield 或主动检查 isActive；Thread.sleep/普通阻塞 IO 未必协作取消，可中断调用可按契约使用 runInterruptible。
 
-CancellationException 应重新抛出。runCatching 捕获 Throwable，因此下面是业务挂起调用的**边界片段**：
+CancellationException 应重新抛出。runCatching 捕获 Throwable，因此下面是业务挂起调用的边界片段：
 
 ```kotlin
 // 片段：load 是调用方的 suspend 函数
@@ -258,7 +258,7 @@ StateFlow 必须有初始值，保存当前值，向新订阅者提供最新状�
 
 就地修改 MutableList 再把同一对象放回，可能由于相等合并不通知 UI；使用不可变属性、新容器和 copy，并消除外部别名。update 是原子更新，lambda 可能因竞争重试执行多次，不能在其中发请求、扣款或生成必须恰好一次的审计记录。
 
-SharedFlow 用于多订阅广播：replay 决定给新订阅者回放多少，extraBufferCapacity 用于已有慢订阅者的额外缓冲。**没有订阅者时只保留 replay 所允许的值**，extraBufferCapacity 不是离线事件仓库。默认 MutableSharedFlow 无 replay，没订阅者时发出的事件会丢失；tryEmit 成功也不等于有人消费。
+SharedFlow 用于多订阅广播：replay 决定给新订阅者回放多少，extraBufferCapacity 用于已有慢订阅者的额外缓冲。没有订阅者时只保留 replay 所允许的值，extraBufferCapacity 不是离线事件仓库。默认 MutableSharedFlow 无 replay，没订阅者时发出的事件会丢失；tryEmit 成功也不等于有人消费。
 
 关键业务事件应有业务 ID、持久状态、确认/去重规则。Channel 是队列通信，一个元素通常给一个接收者，与广播不同；也不能仅凭 Channel 宣称 UI 事件恰好消费一次或进程死亡后可靠。
 
@@ -307,7 +307,7 @@ class SearchViewModel(private val repo: SearchRepository) : ViewModel() {
 
 先观察 Empty → Loading → Content/Failure，快速切换输入时旧查询被取消。错误处理在内层，后续新输入还能启动新查询；如果在整个输入流外 catch 后结束上游，后续输入可能不再处理。这里相同 query 被合并，失败重试按钮需另加刷新触发或请求状态设计，不能只再次 setQuery 相同字符串。
 
-Fragment 在 onViewCreated 中收集的**接入片段**：
+Fragment 在 onViewCreated 中收集的接入片段：
 
 ```kotlin
 // 需 lifecycle-runtime-ktx；viewModel/render 由页面提供

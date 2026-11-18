@@ -4,14 +4,6 @@ title: SpringBoot自动装配与核心机制
 
 # SpringBoot自动装配与核心机制
 
-## 使用入口：先解决问题，再做验证
-
-减少基础配置并按环境启用组件。
-
-**先做基本操作**：先启动最小应用，写配置并验证条件生效/缺失行为，再查看条件报告和自动装配入口。初次学习可先完成[本模块基础实践](/doc/Java/Java语言基础与日常开发)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 > **一句话大白话**：自动装配就是 SpringBoot 拿着一份「预备配置类清单」，根据你项目当前的 Classpath 环境（有没有引入对应的 Jar 包）和 `application.yml` 里的配置（有没有开启开关），**按需、按条件**把第三方库的 Bean 自动塞进 Spring 容器中，让你开箱即用、彻底告别繁琐的 XML 和手动 `@Bean` 配置。
 
 ---
@@ -21,7 +13,7 @@ title: SpringBoot自动装配与核心机制
 - **传统 Spring（毛坯房）**：
   你拿到房子后，想装空调得自己去电器城挑选品牌、买电线、找工人安装（手动写 XML 或 `@Bean` 实例化 `DataSource`、`RedisTemplate`）。
 - **SpringBoot（精装修全包公寓）**：
-  装修公司手里有一份**《全套家电配置清单》（`spring.factories` 或 `AutoConfiguration.imports`）**。
+  装修公司手里有一份《全套家电配置清单》（`spring.factories` 或 `AutoConfiguration.imports`）。
   - **按需触发（`@ConditionalOnClass`）**：装修师傅进屋一看，发现你订购了中央空调配件（pom.xml 引入了 `spring-boot-starter-data-redis`），师傅立马照着清单把空调装好。
   - **允许个性化（`@ConditionalOnMissingBean`）**：如果进屋发现你自带了一台心仪的复古冰箱（自己定义了一个同名 Bean），师傅就尊重你的选择，不再安装默认冰箱。
   - **配置参数定制（`@ConfigurationProperties`）**：空调温度、风速直接通过墙上的温控面板设置（在 `application.yml` 里填 `spring.redis.host`）。
@@ -68,7 +60,7 @@ flowchart TD
 | **`@ConditionalOnClass`** | 类路径下存在指定类才生效 | 检查项目是否引入了 Jedis/Lettuce 依赖包 |
 | **`@ConditionalOnMissingClass`** | 类路径下不存在指定类才生效 | 降级机制或备选适配方案 |
 | **`@ConditionalOnBean`** | 容器中已存在指定 Bean 才生效 | 依赖另一个核心组件完成之后再装配 |
-| **`@ConditionalOnMissingBean`** | 容器中**不存在**指定 Bean 才生效 | **开箱即用 + 允许开发者无缝覆盖**的根基 |
+| **`@ConditionalOnMissingBean`** | 容器中不存在指定 Bean 才生效 | 开箱即用 + 允许开发者无缝覆盖的根基 |
 | **`@ConditionalOnProperty`** | 配置文件中指定属性符合预期才生效 | 例如 `redis.enabled=true` 时才初始化客户端 |
 
 ---
@@ -164,7 +156,7 @@ sms:
 | **配置项配了，Bean 却未注入** | `@ConditionalOnProperty` 参数大小写、前缀错误，或缺少 `matchIfMissing = true` | 启动参数添加 `--debug`，查看打印的 `CONDITIONS EVALUATION REPORT`（条件评估报告）寻找 `Negative matches` |
 | **自己手写的 Bean 没有替换掉默认 Bean** | 自己的配置类加载顺序晚于自动配置类，或者写了同样的配置类名字 | 在自己的配置类上使用 `@AutoConfigureBefore`，或显式定义 `@Bean` 覆盖并移除 `@ComponentScan` 扫描冲突 |
 | **自定义 Starter 在 Boot 3.x 下失效** | 沿用了 2.x 的 `META-INF/spring.factories`，Boot 3.x 已废弃此路径 | 迁移到 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
-| **依赖循环装配或启动极慢** | Starter 中 `@ComponentScan` 扫描范围过大，把业务代码的包也反向扫了进来 | Starter 中**严禁**使用通配的 `@ComponentScan`，一律采用按需注册或 `@Import` 显式装配 |
+| **依赖循环装配或启动极慢** | Starter 中 `@ComponentScan` 扫描范围过大，把业务代码的包也反向扫了进来 | Starter 中严禁使用通配的 `@ComponentScan`，一律采用按需注册或 `@Import` 显式装配 |
 
 ---
 

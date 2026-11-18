@@ -66,13 +66,13 @@ title: Android APK打包安装与签名
 ## 8. Android App Bundle (AAB / Bundle 包) 深度原理
 
 ### 8.1 什么是 AAB？
-- **AAB（Android App Bundle，扩展名为 `.aab`）** 是 Google 推出并强制在 Google Play 上发布的**现代分发格式**。
-- 它**不是**设备可直接安装执行的格式（Android 手机上运行的永远是 APK），而是一种**包含应用所有编译代码和资源归档的发布包**。
+- AAB（Android App Bundle，扩展名为 `.aab`） 是 Google 推出并强制在 Google Play 上发布的现代分发格式。
+- 它不是设备可直接安装执行的格式（Android 手机上运行的永远是 APK），而是一种包含应用所有编译代码和资源归档的发布包。
 - 由 Google Play 或分发服务器根据每个终端设备的具体硬件特征，动态生成并下发最匹配该设备的精简组合包。
 
 ### 8.2 AAB 核心底层原理：动态交付（Dynamic Delivery）与 Split APKs
 
-在 Android 5.0（Lollipop，API 21）中，系统底层引入了 **Split APKs（分包机制）**，使得一个应用可以由多个互相关联的 APK 组成并共享同一个包名、进程与上下文：
+在 Android 5.0（Lollipop，API 21）中，系统底层引入了 Split APKs（分包机制），使得一个应用可以由多个互相关联的 APK 组成并共享同一个包名、进程与上下文：
 
 ```mermaid
 graph TD
@@ -97,12 +97,12 @@ graph TD
    - **语言分包（Language）**：只下发用户系统当前设置的语言包（如中文），省去几十种甚至上百种国际化语言资源。
 3. **Feature Split APKs（动态功能模块 / Dynamic Feature Modules）**：
    - 开发者可将非核心功能（如大额退款复杂流程、AR 体验、专业视频滤镜）剥离为独立模块。
-   - 支持**按需下载（On-demand）**、**条件下载（如仅带陀螺仪的手机才下发）**或**安装时延后静默下载**。
+   - 支持按需下载（On-demand）、条件下载（如仅带陀螺仪的手机才下发）或安装时延后静默下载。
 
 ### 8.3 Google Play 签名托管（Play App Signing）原理
 传统 APK 模式下，开发者直接将私钥签名的 APK 交付给用户，一旦签名私钥泄露，应用身份全部沦陷；若私钥丢失，则应用永远无法升级。
 
-在 AAB 模式下，采用**双密钥体系**：
+在 AAB 模式下，采用双密钥体系：
 - **Upload Key（上传密钥）**：开发者保留，仅用于将 `.aab` 上传至 Google Play 控制台。
 - **App Signing Key（应用签名私钥）**：由 Google 严格存储在与 Google 核心基础设施同等安全级别的密钥管理服务（KMS）中。Google Play 接收到 AAB 后，拆分出 Split APK，并用该 App Signing Key 为每个 Split APK 完成最终签名。
 - **好处**：即使开发者的上传证书遗失或电脑损坏，也可以向 Google 申请重置 Upload Key，不会影响线上老用户的平滑升级覆盖。
@@ -153,9 +153,9 @@ A: 因为对齐后资源读取效率更高，有助于系统按页映射和访�
 这类题的关键不仅是理解概念，更是讲清楚 APK 结构、签名机制、安装流程和工程化发布链路。
 
 ::: tip 深入工程实践
-关于 **Keystore 签名生成命令、v2/v3 验签、zipalign 对齐、Gradle 多渠道打包（Product Flavors / Walle）及 APK 自动重命名** 的具体脚本与命令行实操，请参阅：
-👉 [Android发包打包、签名与ADB调试命令全集](/doc/Android/Android发包打包与ADB调试命令全集)
+关于 Keystore 签名生成命令、v2/v3 验签、zipalign 对齐、Gradle 多渠道打包（Product Flavors / Walle）及 APK 自动重命名 的具体脚本与命令行实操，请参阅：
+ [Android发包打包、签名与ADB调试命令全集](/doc/Android/Android发包打包与ADB调试命令全集)
 
-关于 **R8 / ProGuard 编译流水线、Keep 语法边界、反射/JSON/JNI 避坑、线上 mapping.txt 堆栈还原与母版配置**，请参阅：
-👉 [Android代码混淆与R8高级实战全解](/doc/Android/Android代码混淆与R8高级实战全解)
+关于 R8 / ProGuard 编译流水线、Keep 语法边界、反射/JSON/JNI 避坑、线上 mapping.txt 堆栈还原与母版配置，请参阅：
+ [Android代码混淆与R8高级实战全解](/doc/Android/Android代码混淆与R8高级实战全解)
 :::

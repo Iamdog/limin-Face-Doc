@@ -4,17 +4,9 @@ title: Dubbo分布式RPC核心原理与实战
 
 # Dubbo分布式RPC核心原理与实战
 
-## 使用入口：先解决问题，再做验证
-
-让两个服务调用明确接口并处理远端失败。
-
-**先做基本操作**：先运行 provider/consumer、设置超时并验证调用，再学习注册发现、协议、SPI 和负载均衡。初次学习可先完成[本模块基础实践](/doc/Java/Java语言基础与日常开发)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 ## 基本接入实战（Spring Boot 3 + Dubbo 3.2）
 
-**依赖**
+依赖
 
 ```xml
 <dependency>
@@ -29,7 +21,7 @@ title: Dubbo分布式RPC核心原理与实战
 </dependency>
 ```
 
-**公共 API 模块**（Provider 与 Consumer 共享，只放接口和 DTO）
+公共 API 模块（Provider 与 Consumer 共享，只放接口和 DTO）
 
 ```java
 public interface OrderService {
@@ -38,7 +30,7 @@ public interface OrderService {
 }
 ```
 
-**Provider**
+Provider
 
 ```java
 @SpringBootApplication
@@ -57,7 +49,7 @@ public class OrderServiceImpl implements OrderService {
 }
 ```
 
-**Consumer**
+Consumer
 
 ```java
 @RestController
@@ -80,8 +72,8 @@ public class OrderController {
 
 | 维度 | Dubbo 3.x | Spring Cloud Alibaba | gRPC |
 |---|---|---|---|
-| 定位 | RPC 框架 + 服务治理 | 微服务**全家桶**（网关/配置/流控/事务） | 高性能 RPC 框架 |
-| 通信协议 | dubbo（TCP 私有）/ **tri（HTTP/2）** | HTTP/REST（Feign） | HTTP/2 + Protobuf |
+| 定位 | RPC 框架 + 服务治理 | 微服务全家桶（网关/配置/流控/事务） | 高性能 RPC 框架 |
+| 通信协议 | dubbo（TCP 私有）/ tri（HTTP/2） | HTTP/REST（Feign） | HTTP/2 + Protobuf |
 | 服务发现 | 接口级 + 应用级（3.x 默认应用级） | Nacos 应用级 | 需自行集成 |
 | 序列化 | hessian2 / fastjson2 / protobuf | JSON | Protobuf（强约束） |
 | 治理能力 | 超时、重试、路由、限流、熔断、Mock | 交给 Sentinel / Gateway | 几乎无，靠生态 |
@@ -104,7 +96,7 @@ flowchart LR
 | 角色 | 关键点 |
 |---|---|
 | Provider | 暴露服务，把 `ref` 包成 Invoker，绑定端口监听 |
-| Consumer | 订阅服务，拿到 **URL 列表缓存到本地**，调用于是**不经过注册中心**（注册中心挂了不影响已运行调用） |
+| Consumer | 订阅服务，拿到 URL 列表缓存到本地，调用于是不经过注册中心（注册中心挂了不影响已运行调用） |
 | Registry | 只负责「地址簿」，不做流量转发，因此不会成为调用链路瓶颈 |
 | Monitor | 异步上报 RT / QPS / 失败率，可关（`dubbo.monitor.enable=false`） |
 | Container | 通常是 Spring Boot，负责生命周期 |
@@ -152,7 +144,7 @@ flowchart TD
 关键点：
 - 同一端口可暴露多个服务（`ServiceConfig` 存在 `exporterMap`，key 是 `接口:版本:分组`）。
 - `delay` 参数可延迟暴露，避免服务未预热就被打流量。
-- 导出前会做**本地存根（stub）**、`Mock` 的绑定。
+- 导出前会做本地存根（stub）、`Mock` 的绑定。
 
 ### 3.2 引用：`ReferenceConfig.get()`
 
@@ -169,7 +161,7 @@ sequenceDiagram
 ```
 
 - **`check=false`**：启动时不校验提供者是否存在，避免提供者后启动导致消费方启动失败（但记得配，否则上线顺序被绑死）。
-- 注册中心推送是**全量覆盖**，不是增量；推送风暴时 `dubbo.registry.file` 会落本地缓存文件，注册中心全挂仍可用缓存启动。
+- 注册中心推送是全量覆盖，不是增量；推送风暴时 `dubbo.registry.file` 会落本地缓存文件，注册中心全挂仍可用缓存启动。
 
 ## 四、SPI 机制：Dubbo 的扩展之本
 
@@ -180,7 +172,7 @@ JDK SPI 的缺陷：一次性加载所有实现（浪费）、无法按名获取
 | 按名加载 | `ExtensionLoader.getExtensionLoader(Xxx.class).getExtension("random")`，只实例化用到的 |
 | IoC | 扩展实现里的 setter（如 `setLoadbalance()`）会被自动注入其他扩展 |
 | AOP | 包装类（Wrapper）自动包裹，Dubbo 内置 Filter 链就是靠这个 |
-| `@Adaptive` | 方法上标注：运行时**从 URL 参数动态选实现**，Dubbo 为接口自动生成 `Xxx$Adaptive` 字节码 |
+| `@Adaptive` | 方法上标注：运行时从 URL 参数动态选实现，Dubbo 为接口自动生成 `Xxx$Adaptive` 字节码 |
 | `@Activate` | 标注自动激活的扩展（如 Filter 按 `group=consumer/provider` 生效） |
 | `@SPI("默认值")` | 指定默认扩展名 |
 
@@ -197,7 +189,7 @@ public interface LoadBalance {
 myweight=com.demo.MyWeightLoadBalance
 ```
 
-**自定义一个 Filter 的例子**（记调用耗时、打 traceId）：
+自定义一个 Filter 的例子（记调用耗时、打 traceId）：
 
 ```java
 @Activate(group = {CommonConstants.CONSUMER, CommonConstants.PROVIDER}, order = -9000)
@@ -235,15 +227,15 @@ public class TraceFilter implements Filter {
 ```
 
 - 单一长连接 + 多线程复用（默认 `connections=0` 表示共享连接），心跳保活。
-- **默认 8MB 包体上限**（`payload=8388608`），传大对象直接超限报错——别用 Dubbo 传文件或大 JSON。
+- 默认 8MB 包体上限（`payload=8388608`），传大对象直接超限报错——别用 Dubbo 传文件或大 JSON。
 
 ### 5.2 协议与序列化选型
 
 | 项 | 选择 | 说明 |
 |---|---|---|
 | 协议 | `dubbo` | 默认，TCP 长连接，性能最好，但非标准协议，网关/多语言不友好 |
-| 协议 | `tri`（Triple） | **Dubbo 3 推荐**，基于 HTTP/2，兼容 gRPC，可被网关、浏览器、Mesh 直接访问 |
-| 序列化 | `hessian2` | 默认，Java 生态兼容好；注意**字段增删要保证兼容**（新增字段给默认值） |
+| 协议 | `tri`（Triple） | Dubbo 3 推荐，基于 HTTP/2，兼容 gRPC，可被网关、浏览器、Mesh 直接访问 |
+| 序列化 | `hessian2` | 默认，Java 生态兼容好；注意字段增删要保证兼容（新增字段给默认值） |
 | 序列化 | `fastjson2` | 速度快，跨语言可读，但有安全历史包袱（务必开 autoType 白名单） |
 | 序列化 | `protobuf` | 强契约、跨语言首选，需要 IDL |
 
@@ -268,7 +260,7 @@ public class TraceFilter implements Filter {
 
 | 实现 | 机制 | 适用 |
 |---|---|---|
-| `random`（默认） | 加权随机，带**服务预热**（权重随启动时间爬升） | 通用，实例性能均匀 |
+| `random`（默认） | 加权随机，带服务预热（权重随启动时间爬升） | 通用，实例性能均匀 |
 | `roundrobin` | 平滑加权轮询 | 实例同质、要求绝对均匀 |
 | `leastactive` | 选活跃调用数最少的（慢机器自然少接） | 机器性能不均、有长任务 |
 | `shortestresponse` | 选预估 RT 最短的 | RT 敏感 |
@@ -320,7 +312,7 @@ dubbo:
 | 坑 | 现象 | 正解 |
 |---|---|---|
 | 默认重试导致重复写 | 一次请求写入 2~3 条订单 | 写接口 `retries=0` + `failfast` + 业务幂等键，见 [幂等性设计](/doc/SystemDesign/幂等性设计与重复请求治理) |
-| 超时配置方向搞反 | 消费端设 3s、提供端设 5s，结果消费端先超时并重试，提供端还在跑 | 消费端超时应 **≥** 提供端，否则「重试叠加」放大下游压力 |
+| 超时配置方向搞反 | 消费端设 3s、提供端设 5s，结果消费端先超时并重试，提供端还在跑 | 消费端超时应 ≥ 提供端，否则「重试叠加」放大下游压力 |
 | 线程池打满 | `Thread pool is EXHAUSTED`，全站 RT 飙升 | 配 `executes` 拒绝 + 独立线程池隔离 + 监控 `dubbo_threadpool_*` |
 | 大包传输失败 | `Data length too large: xxx, max payload: 8388608` | 改传 OSS 地址/分页，或调 `payload`（不推荐无脑调大） |
 | 注册中心推送风暴 | 大规模扩缩容时 CPU 飙高 | 用应用级服务发现（3.x 默认）、控制实例数、开本地缓存文件 |

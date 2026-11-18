@@ -1,18 +1,8 @@
 # Activity
 
-## 使用入口：先解决问题，再做验证
-
-展示页面、导航并恢复必要状态。
-
-**先做基本操作**：先注册两个 Activity，用 Intent 传小参数并返回结果，测试旋转/返回/进程重建，再看生命周期与任务栈。初次学习可先完成[本模块基础实践](/doc/Android/Android应用基本开发与验证)。
-
-**再逐步深入**：基本 API 与输入输出 → 常见失败和使用边界 → 场景排查与优化 → 本文机制分析与源码。面试先讲用途和自己的操作过程，再回答场景与原理追问。
-
 ## 是什么？
 
 Android 应用中负责展示界面并与用户进行交互的单一屏幕窗口
-
-
 
 ## 生命周期（Lifecycle）
 
@@ -27,13 +17,11 @@ Android 应用中负责展示界面并与用户进行交互的单一屏幕窗口
 - **按下Back键**：onPause -> onStop -> onDestroy。
 - **亮屏/灭屏**：常见情况下会发生暂停/停止和启动/恢复，具体受锁屏、窗口可见性、多窗口和系统版本影响。
 
-**异常销毁与数据恢复**
+异常销毁与数据恢复
 
 系统会调用 `onSaveInstanceState()`，你可以将数据存入 Bundle。
 
  在 `onCreate(Bundle savedInstanceState)` 或 `onRestoreInstanceState()` 中取回数据
-
-
 
 ## 启动模式（LaunchMode）
 
@@ -44,8 +32,6 @@ Android 应用中负责展示界面并与用户进行交互的单一屏幕窗口
 - **singleTask**：栈内复用。如果栈内已存在，则将其上方的所有Activity出栈，使其置于栈顶。
 - **singleInstance**：单实例模式。Activity独占一个新任务栈。
 
-
-
 ## 启动流程
 
 - **Instrumentation**: 负责监控 Activity 与系统的交互。
@@ -53,53 +39,39 @@ Android 应用中负责展示界面并与用户进行交互的单一屏幕窗口
 - **Zygote**: 负责孵化应用进程。
 - **ApplicationThread**: 它是 Binder 对象，用于 AMS 与应用进程跨进程通信（IPC）。
 
-
-
 ## 传值
 
 `Intent+Bundle`
 
 通过 `Intent` 对象的 `putExtra()` 方法，可以传递基本数据类型（int, String, boolean 等）以及实现了序列化接口的对象。 传递的对象必须实现 `Serializable` 或 `Parcelable` 接口；不建议传递大数据（如大图），容易导致 `TransactionTooLargeException`。
 
-
-
 `静态变量/单例模式`
 
-方便快捷，容易造成**内存泄漏**；在系统内存不足回收后，静态变量会被重置，导致空指针异常
-
-
-
-
+方便快捷，容易造成内存泄漏；在系统内存不足回收后，静态变量会被重置，导致空指针异常
 
 `全局 Application 对象`
 
 自定义一个继承自 `Application` 的类，在其中存储全局变量。
 
-
-
 `持久化存储 (Database / SharedPreferences)`
 
 通过将数据写入磁盘，由另一个 Activity 读取。如：
 
-**SharedPreferences：** 适合简单的配置信息（Key-Value）。
+SharedPreferences： 适合简单的配置信息（Key-Value）。
 
-**Room/SQLite：** 适合结构化的大型数据集。
+Room/SQLite： 适合结构化的大型数据集。
 
-**DataStore：** 官方推荐替代 SharedPreferences 的现代方案。
+DataStore： 官方推荐替代 SharedPreferences 的现代方案。
 
-**MMKV：**基于 mmap 内存映射的 key-value 组件，底层序列化/反序列化使用 protobuf 实现，性能高，稳定性强，且支持多个平台。
-
-
+MMKV：基于 mmap 内存映射的 key-value 组件，底层序列化/反序列化使用 protobuf 实现，性能高，稳定性强，且支持多个平台。
 
 `事件总线（EventBus/Flow）`
 
 使用第三方库如 `EventBus` 或 Kotlin 的 `SharedFlow` 进行发布/订阅式通信。
 
-
-
 `数据回传`
 
-**返回数据给上一个 Activity：** 使用最新的 `ActivityResultLauncher` API（替代传统的 `startActivityForResult`）。
+返回数据给上一个 Activity： 使用最新的 `ActivityResultLauncher` API（替代传统的 `startActivityForResult`）。
 
 ## 常见核心问题
 
