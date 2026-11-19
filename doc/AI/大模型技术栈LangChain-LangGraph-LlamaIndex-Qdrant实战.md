@@ -360,7 +360,162 @@ print(f"\n🎉 最终产出结果:\n{final_output['answer']}")
 
 ---
 
-## 七、 生产级避坑军规与核心实战总结
+## 八、 实战演练：用 (LangGraph + LlamaIndex + Qdrant) 重构「时光寻忆」
+
+在第一章中，我们是用 NestJS TypeScript 手写的线性流水线。如果随着家庭照片突破百万张、需要支持多模态以图搜图、需要多 Agent 分工（一个专门做视觉校验，一个专门做文案共情），我们如何用这套现代全家桶进行重构？
+
+### 1. 架构映射对比矩阵
+
+| 系统模块 | 第一章原生实现（时光寻忆 MVP） | 现代全家桶重构架构 | 带来的核心提升 |
+| :--- | :--- | :--- | :--- |
+| **存储层** | SQLite + Prisma ORM<br>(受制于 64-Join 瓶颈，需手动折叠) | **Qdrant 向量数据库**<br>(Rust 引擎，Dense 向量 + Payload 标量联合索引) | 彻底消除 Join 限制；百万级照片相似度检索耗时 < 5ms；支持以图搜图 |
+| **检索层** | TypeScript 手写分词泛化 (`expandTokens`) + LIKE 模糊匹配 | **LlamaIndex 混合检索管线**<br>(多模态 Clip Embedding + BM25 + Payload 过滤) | 支持深层语义理解（如“开心的大笑”无须精准匹配分词）；原生支持 Rerank |
+| **模型调度** | 原生 `fetch` + OpenAI 兼容 SSE 适配器 | **LangChain (LCEL)**<br>(统一适配云端 Qwen 与本地 Ollama) | 统一 Prompt 模板管理；自动处理流式重试与 Pydantic 结构化输出 |
+| **流程编排** | 写死的 NestJS Service 线性同步流水线 | **LangGraph 状态图 (StateGraph)**<br>(带条件路由与视觉门禁自省节点) | 模块彻底解耦；可视化流程拓扑；支持复杂查询自动改写与重试 |
+
+### 2. 重构后的 LangGraph 状态图拓扑
+
+```mermaid
+flowchart TD
+    Start([用户发起提问]) --> IntentNode["Node 1: 意图解析与实体抽取<br>(LangChain LCEL 提取人物/服饰颜色/场景)"]
+    
+    IntentNode --> BranchCheck{"条件分支: 是否含强视觉约束?"}
+    
+    BranchCheck -- "是 (如: 穿黄色衣服的铭铭)" --> VisualRetrieval["Node 2A: Qdrant 视觉 Payload 严格过滤<br>(must: clothes_color='黄色')"]
+    BranchCheck -- "否 (普通泛化查询)" --> HybridRetrieval["Node 2B: LlamaIndex 混合检索<br>(CLIP 语义向量 + BM25)"]
+    
+    VisualRetrieval --> VisualGateNode["Node 3: 视觉门禁与一票否决<br>(单票否决: 穿其他颜色直接置零)"]
+    HybridRetrieval --> VisualGateNode
+    
+    VisualGateNode --> GateCheck{"门禁判定: 候选照片是否合格?"}
+    GateCheck -- "通过 (≥ 1张)" --> SynthesizeNode["Node 4: 温情文案生成与图文装配<br>(流式吐出 SSE event: memories 与 message)"]
+    GateCheck -- "未通过 (0张命中)" --> FallbackNode["Node 5: 诚实兜底告知<br>(未找到符合条件的真实照片，拒绝幻觉)"]
+    
+    SynthesizeNode --> End([结束交付客户端])
+    FallbackNode --> End
+```
+
+### 3. 重构实战代码：LangGraph 状态机定义
+
+```python
+# time_memories_langgraph.py
+from typing import TypedDict, List, Optional
+from langgraph.graph import StateGraph, END
+from qdrant_client import QdrantClient
+from qdrant_client.models import Filter, FieldCondition, MatchValue
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
+
+# 1. 状态定义 (Graph State)
+class TimeMemoriesState(TypedDict):
+    family_id: str
+    query: str
+    target_person: Optional[str]
+    target_color: Optional[str]
+    is_clothing_query: bool
+    photo_candidates: List[dict]
+    passed_photos: List[dict]
+    stream_answer: str
+
+# 2. 节点 1: 意图与实体抽取 (LangChain)
+class QueryIntent(BaseModel):
+    person: Optional[str] = Field(description="查询的人物名字，如'铭铭'")
+    color: Optional[str] = Field(description="查询的服饰颜色，如'黄色'")
+    is_clothing: bool = Field(description="是否对人物穿戴衣着有明确约束")
+
+llm = ChatOpenAI(model="qwen3.8-flash-next", temperature=0)
+structured_llm = llm.with_structured_output(QueryIntent)
+
+def parse_intent_node(state: TimeMemoriesState):
+    print(f"[Node: 意图解析] 解析用户输入: {state['query']}")
+    intent: QueryIntent = structured_llm.invoke(f"分析相册搜索意图：{state['query']}")
+    return {
+        "target_person": intent.person,
+        "target_color": intent.color,
+        "is_clothing_query": intent.is_clothing,
+    }
+
+# 3. 节点 2: Qdrant 检索节点
+qdrant = QdrantClient(host="localhost", port=6333)
+
+def qdrant_retrieve_node(state: TimeMemoriesState):
+    print(f"[Node: Qdrant 检索] 执行带租户与元数据过滤的检索...")
+    must_conditions = [
+        FieldCondition(key="family_id", match=MatchValue(value=state["family_id"]))
+    ]
+    if state["target_person"]:
+        must_conditions.append(FieldCondition(key="people", match=MatchValue(value=state["target_person"])))
+    
+    # Qdrant 毫秒级标量过滤 + 向量检索
+    hits = qdrant.query_points(
+        collection_name="family_photos",
+        query_filter=Filter(must=must_conditions),
+        limit=10
+    )
+    candidates = [hit.payload for hit in hits.points]
+    return {"photo_candidates": candidates}
+
+# 4. 节点 3: 视觉门禁与一票否决校验 (Visual Gating)
+def visual_gate_node(state: TimeMemoriesState):
+    print(f"[Node: 视觉门禁] 校验服饰颜色冲突...")
+    candidates = state["photo_candidates"]
+    target_color = state["target_color"]
+    passed = []
+
+    for photo in candidates:
+        if state["is_clothing_query"] and target_color:
+            clothing_colors = photo.get("clothing_colors", [])
+            # 一票否决：穿了其他颜色且不包含目标颜色，直接剔除！
+            if target_color not in clothing_colors:
+                continue
+        passed.append(photo)
+
+    print(f"门禁前候选: {len(candidates)} 张, 门禁通过: {len(passed)} 张")
+    return {"passed_photos": passed}
+
+# 5. 节点 4: 生成温情文案 (通过时)
+def synthesize_node(state: TimeMemoriesState):
+    photos = state["passed_photos"]
+    desc = "\n".join([f"照片 ID:{p['id']}, 描述:{p['summary']}, 拍摄时间:{p['date']}" for p in photos])
+    prompt = f"根据用户提问【{state['query']}】，结合以下已核实的相册真实回忆进行温情解答：\n{desc}"
+    answer = llm.invoke(prompt).content
+    return {"stream_answer": answer}
+
+# 6. 节点 5: 诚实兜底 (未通过时)
+def fallback_node(state: TimeMemoriesState):
+    return {"stream_answer": f"在相册中仔细寻找了很久，没有找到符合【{state['query']}】的照片哦。您要不要换个关键词试试？"}
+
+# 7. 组装 StateGraph
+workflow = StateGraph(TimeMemoriesState)
+workflow.add_node("intent", parse_intent_node)
+workflow.add_node("retrieve", qdrant_retrieve_node)
+workflow.add_node("visual_gate", visual_gate_node)
+workflow.add_node("synthesize", synthesize_node)
+workflow.add_node("fallback", fallback_node)
+
+workflow.set_entry_point("intent")
+workflow.add_edge("intent", "retrieve")
+workflow.add_edge("retrieve", "visual_gate")
+
+# 条件分支路由
+def check_gate_result(state: TimeMemoriesState):
+    return "synthesize" if len(state["passed_photos"]) > 0 else "fallback"
+
+workflow.add_conditional_edges(
+    "visual_gate",
+    check_gate_result,
+    {"synthesize": "synthesize", "fallback": "fallback"}
+)
+workflow.add_edge("synthesize", END)
+workflow.add_edge("fallback", END)
+
+time_memories_app = workflow.compile()
+```
+
+---
+
+## 九、 生产级避坑军规与核心实战总结
 
 > [!CAUTION] 避坑 1：不要对所有场景都盲目上 Agent
 > 简单的单轮问答、纯语义搜索，LlamaIndex + Qdrant 的 QueryEngine 即可解决 95% 的问题。只有流程具备“非线性分支、循环自省纠错、需要调用第三方 API 工具”时，才引入 LangGraph，否则只会徒增系统延迟和 Token 消耗。
@@ -373,3 +528,4 @@ print(f"\n🎉 最终产出结果:\n{final_output['answer']}")
 > 绝不能仅靠单一路余弦相似度。生产标准方案是：
 > 1. 混合检索（Hybrid Search）：Qdrant 稠密向量（语义匹配） + 稀疏向量/BM25（专有名词精确匹配）。
 > 2. 重排序（Reranking）：召回 Top 20 后，通过 `bge-reranker-large` 等交叉编码器重新打分，仅取 Top 3~5 喂给 LLM。
+

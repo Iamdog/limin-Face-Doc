@@ -64,6 +64,10 @@ Vue 页面最终运行在浏览器中。表单值为什么不对、请求为什�
 | ES Modules | export/import 分离模块 | 构建工具负责解析依赖；浏览器不能直接理解任意 npm 包名 |
 | 原型与 class | 用 class 表达对象行为和共享方法 | class 仍基于原型；别在读懂调用关系前背原型链图 |
 
+::: tip 深入推荐：现代 JS 模块系统演进与文件扩展名
+关于 JavaScript 模块系统的详细对比（`.js` / `.mjs` / `.cjs` 规范判定依据、Top-Level Await、Live Bindings 实时只读绑定、双包陷阱与工程配置），请详见专属进阶专题：[JavaScript 模块化规范与扩展名深度对比（.js / .mjs / .cjs）](/doc/Vue/JS模块化规范与文件扩展名深度对比-js-mjs-cjs)。
+:::
+
 ## 浏览器基本使用与排错
 
 1. Elements 看 DOM、盒模型、布局和可访问性；Console 看异常。

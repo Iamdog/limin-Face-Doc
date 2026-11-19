@@ -597,6 +597,7 @@ export default withMermaid({
                 collapsed: true,
                 items: [
                   { text: "JavaScript与浏览器基础实战", link: "/doc/Vue/JavaScript与浏览器基础实战" },
+                  { text: "JS模块化规范与扩展名对比(.js/.mjs/.cjs)", link: "/doc/Vue/JS模块化规范与文件扩展名深度对比-js-mjs-cjs" },
                   { text: "CSS布局与响应式实战", link: "/doc/Vue/CSS布局与响应式实战" },
                   { text: "TypeScript工程实践与类型体操", link: "/doc/Vue/TypeScript工程实践与类型体操" },
                   { text: "Vue热门生态库与工程化MVP", link: "/doc/Vue/Vue热门生态库与工程化MVP" },
@@ -951,15 +952,50 @@ export default withMermaid({
         text: "🤖 前沿探索与极客生态",
         items: [
           {
-            text: "AI 实战",
+            text: "AI 原生与大模型工程架构",
             link: "/doc/AI/前言",
-            collapsed: true,
+            collapsed: false,
             items: [
-              { text: "前言：AI 工程化与应用地图", link: "/doc/AI/前言" },
-              { text: "模型调用、RAG 与评测基础", link: "/doc/AI/模型调用RAG与评测基础" },
-              { text: "AI模块文档意图识别与动态路由", link: "/doc/AI/AI模块文档意图识别与动态路由" },
-              { text: "LangChain+LangGraph+LlamaIndex+Qdrant实战", link: "/doc/AI/大模型技术栈LangChain-LangGraph-LlamaIndex-Qdrant实战" },
-              { text: "VibeCoding与MCP生态(Stitch/Superpowers/Trellis/UUPM)", link: "/doc/AI/VibeCoding与MCP生态实战-Stitch-Superpowers-Trellis与UIUXProMax" },
+              { text: "前言：全阶段技术图谱与学习路线", link: "/doc/AI/前言" },
+              {
+                text: "一、初级筑基·模型调用、Prompt工程与确定性工作流实战",
+                collapsed: true,
+                items: [
+                  { text: "01. 模型调用基础、Token 机制与评测指标规范", link: "/doc/AI/模型调用RAG与评测基础" },
+                  { text: "02. 真实项目：家庭云相册「时光寻忆」确定性工作流 Agent 落地实战", link: "/doc/AI/结构化工作流编排型Agent落地实战-家庭云相册时光寻忆" },
+                ],
+              },
+              {
+                text: "二、中级进阶·自主决策Agent体系、状态机与工业全家桶",
+                collapsed: true,
+                items: [
+                  { text: "03. 自主决策 Agent 体系：ReAct 循环、Tool Calling 原理与生产级选型思辨", link: "/doc/AI/自主决策Agent体系-ReAct与ToolCalling原理解析" },
+                  { text: "04. 现代 AI 工程全家桶实战：LangChain + LangGraph + LlamaIndex + Qdrant", link: "/doc/AI/大模型技术栈LangChain-LangGraph-LlamaIndex-Qdrant实战" },
+                ],
+              },
+              {
+                text: "三、高级深水·工业级RAG检索增强、意图路由与状态闭环",
+                collapsed: true,
+                items: [
+                  { text: "05. 现代工业级 RAG 全生命周期体系：从 Naive RAG 到高级多路检索与评测", link: "/doc/AI/现代工业级RAG全生命周期体系" },
+                  { text: "06. AI 模块文档意图识别与多级级联动态路由架构", link: "/doc/AI/AI模块文档意图识别与动态路由" },
+                ],
+              },
+              {
+                text: "四、资深架构·开放协议生态(MCP)与极客智能体工具链",
+                collapsed: true,
+                items: [
+                  { text: "07. MCP（Model Context Protocol）模型上下文协议：原理、生态与开发实战", link: "/doc/AI/MCP模型上下文协议与开发实战" },
+                  { text: "08. VibeCoding 与 Agent 生态工具实战：Stitch、Superpowers、Trellis 与 UI-UX-Pro-Max", link: "/doc/AI/VibeCoding与MCP生态实战-Stitch-Superpowers-Trellis与UIUXProMax" },
+                ],
+              },
+              {
+                text: "五、全阶段通关真题库·大厂AI工程化高频面试硬核连环炮",
+                collapsed: false,
+                items: [
+                  { text: "09. 🎯 大厂 AI 工程化高频面试攻防与系统设计 12 连环炮全景通关", link: "/doc/AI/大厂AI工程化高频面试攻防与系统设计" },
+                ],
+              },
             ],
           },
           {
